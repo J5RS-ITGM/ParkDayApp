@@ -164,6 +164,8 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .kidCard .bigAv{width:46px;height:46px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-family:'Fredoka';font-size:1.2rem;flex:0 0 auto}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chip{font-size:.75rem;font-weight:800;background:#eef1f9;color:#5a5f80;border-radius:99px;padding:4px 10px;border:1.5px solid transparent;cursor:pointer}
+.chip.static{cursor:default;pointer-events:none}
+.lockStat{font-size:.75rem;font-weight:800;color:#7c81a1;background:#f2f4fb;border-radius:99px;padding:3px 10px}
 .chip.on{background:#fde8ee;color:var(--coral);border-color:#f7b8c9}
 
 /* ---------- plan / days ---------- */
@@ -350,7 +352,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v4.3</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v4.4</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -719,7 +721,25 @@ const save=()=>{ ensureSyncFields(S); stampChanges(); schedulePush(); return sto
 function renderKids(){
   const el=document.getElementById("kidsList");
   document.getElementById("kidsEmpty").style.display=S.kids.length?"none":"block";
-  el.innerHTML=S.kids.map(k=>`
+  el.innerHTML=S.kids.map(k=>{
+    const locked=k.locked!==false;   // existing kids default to saved/locked
+    if(locked) return `
+   <div class="card kidCard" data-kid="${k.id}">
+     <div class="bigAv">${(k.name||"?").slice(0,1).toUpperCase()}</div>
+     <div style="flex:1">
+       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+         <b style="font-family:'Fredoka';font-weight:600;font-size:1.05rem">${esc(k.name)||"—"}</b>
+         <span class="lockStat">${k.heightIn?esc(String(k.heightIn))+" in":"height not set"}</span>
+       </div>
+       <div class="chips" style="margin-top:8px">${
+         k.allergies.length
+           ? k.allergies.map(a=>`<span class="chip on static">${a}</span>`).join("")
+           : `<span class="lockStat">No allergies</span>`
+       }</div>
+       <div style="margin-top:10px"><button class="btn ghost small" data-editkid>✎ Edit</button></div>
+     </div>
+   </div>`;
+    return `
    <div class="card kidCard" data-kid="${k.id}">
      <div class="bigAv">${(k.name||"?").slice(0,1).toUpperCase()}</div>
      <div style="flex:1">
@@ -729,9 +749,13 @@ function renderKids(){
        <input type="number" min="20" max="80" value="${k.heightIn||""}" data-edit="height" placeholder="e.g. 41">
        <label class="f">Allergies</label>
        <div class="chips">${ALLERGENS.map(a=>`<button class="chip ${k.allergies.includes(a)?"on":""}" data-allergy="${a}">${a}</button>`).join("")}</div>
-       <div style="margin-top:10px"><button class="btn danger small" data-delkid>Remove</button></div>
+       <div style="margin-top:10px;display:flex;gap:8px">
+         <button class="btn gold small" data-savekid>✓ Save</button>
+         <button class="btn danger small" data-delkid>Remove</button>
+       </div>
      </div>
-   </div>`).join("");
+   </div>`;
+  }).join("");
 }
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
@@ -1084,7 +1108,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
 });
 document.getElementById("tripName").oninput=e=>{S.tripName=e.target.value;save();};
 document.getElementById("tripDate").onchange=e=>{S.tripDate=e.target.value;save();renderHeader();};
-document.getElementById("addKid").onclick=()=>{S.kids.push({id:uid(),name:"New kiddo",heightIn:"",allergies:[]});save();renderKids();renderRides();renderFood();};
+document.getElementById("addKid").onclick=()=>{S.kids.push({id:uid(),name:"New kiddo",heightIn:"",allergies:[],locked:false});save();renderKids();renderRides();renderFood();};
 document.getElementById("addDay").onclick=()=>{S.days.push({id:uid(),label:"Day "+(S.days.length+1),park:"",items:[]});save();renderDays();};
 document.getElementById("liveBtn").onclick=fetchWaits;
 document.getElementById("rideSearch").oninput=()=>renderRides();
@@ -1108,7 +1132,9 @@ document.body.addEventListener("click",e=>{
   const kidCard=t.closest("[data-kid]");
   if(kidCard){
     const k=S.kids.find(x=>x.id===kidCard.dataset.kid);
-    if(t.dataset.allergy!==undefined&&t.dataset.allergy){
+    if(t.hasAttribute("data-savekid")){k.locked=true;save();renderKids();return;}
+    if(t.hasAttribute("data-editkid")){k.locked=false;save();renderKids();return;}
+    if(t.dataset.allergy!==undefined&&t.dataset.allergy&&k.locked===false){
       const a=t.dataset.allergy;
       k.allergies=k.allergies.includes(a)?k.allergies.filter(x=>x!==a):[...k.allergies,a];
       save();renderKids();renderFood();return;
