@@ -86,6 +86,14 @@ header h1 input{
 #foodModal .tipBox input,#foodModal .tipBox select,#foodModal .tipBox textarea{margin-bottom:2px}
 .locChip{font-size:.72rem;font-weight:800;color:#5a5f80;background:#eef1f9;border-radius:8px;padding:3px 8px}
 .customTag{font-size:.6rem;font-weight:800;color:#7b5ea7;background:#f0ebfa;border-radius:6px;padding:3px 7px}
+#mapModal{display:none;position:fixed;inset:0;z-index:230;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:14px}
+#mapModal.open{display:flex}
+.mapBox{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);width:100%;max-width:560px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh}
+.mapHead{display:flex;align-items:center;justify-content:space-between;padding:10px 12px}
+.mapHead h3{font-size:1rem;font-weight:600}
+#mapCanvas{height:min(62vh,520px);width:100%}
+.pinBadge{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.pinBadge span{transform:rotate(45deg);font-size:.9rem}
 #alertsModal{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
 #alertsModal.open{display:flex}
 #alertsBtn{flex:0 0 auto;border:none;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;border-radius:99px;width:34px;height:34px;font-size:1rem;line-height:1}
@@ -394,6 +402,14 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   </div>
 </div>
 
+<div id="mapModal" role="dialog" aria-label="Day map">
+  <div class="mapBox">
+    <div class="mapHead"><h3 id="mapTitle">🗺 Day map</h3><button class="btn ghost small" id="mapClose">✕ Close</button></div>
+    <div id="mapCanvas"></div>
+    <div id="mapUnpinned" class="hint" style="padding:8px 12px"></div>
+  </div>
+</div>
+
 <div id="alertsModal" role="dialog" aria-label="My ride alerts">
   <div class="tipBox">
     <h3>🔔 My ride alerts</h3>
@@ -455,7 +471,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.4</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.5</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -707,6 +723,7 @@ let S={
   waits:{},                // rideName(lower) -> minutes
   extraRides:[],           // synced from ThemeParks.wiki, ht:-1 = verify in park
   extraFood:[],            // synced restaurants, flags:null = no allergen data
+  geo:{},                  // normalized name -> [lat,lon] from ThemeParks.wiki
   lastSync:""
 };
 const allRides=()=>RIDES.concat(S.extraRides||[]);
@@ -731,7 +748,7 @@ function ensureSyncFields(st){
 const entJson=e=>{const {_ts,...rest}=e; return JSON.stringify(rest);};
 function buildSnap(){
   snap={meta:JSON.stringify([S.tripName,S.tripDate]),
-        aux:JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync])};
+        aux:JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync,S.geo])};
   COLLS.forEach(c=>{snap[c]={}; (S[c]||[]).forEach(e=>{snap[c][e.id]=entJson(e);});});
 }
 function stampChanges(){
@@ -743,7 +760,7 @@ function stampChanges(){
     Object.keys(snap[c]).forEach(id=>{ if(!seen[id]) S.tomb[c][id]=now; });
   });
   if(snap.meta!==JSON.stringify([S.tripName,S.tripDate])) S._metaTs=now;
-  if(snap.aux!==JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync])) S._auxTs=now;
+  if(snap.aux!==JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync,S.geo])) S._auxTs=now;
   buildSnap();
 }
 /* merge remote into S; returns {localChanged, needPush} */
@@ -752,7 +769,7 @@ function mergeRemote(remote){
   ensureSyncFields(remote); ensureSyncFields(S);
   const before=JSON.stringify(S);
   if((remote._metaTs||0)>(S._metaTs||0)){S.tripName=remote.tripName;S.tripDate=remote.tripDate;S._metaTs=remote._metaTs;}
-  if((remote._auxTs||0)>(S._auxTs||0)){S.waits=remote.waits||{};S.extraRides=remote.extraRides||[];S.extraFood=remote.extraFood||[];S.lastSync=remote.lastSync||"";S._auxTs=remote._auxTs;}
+  if((remote._auxTs||0)>(S._auxTs||0)){S.waits=remote.waits||{};S.extraRides=remote.extraRides||[];S.extraFood=remote.extraFood||[];S.lastSync=remote.lastSync||"";S.geo=remote.geo||S.geo||{};S._auxTs=remote._auxTs;}
   COLLS.forEach(c=>{
     const L={},R={};
     (S[c]||[]).forEach(e=>L[e.id]=e); (remote[c]||[]).forEach(e=>R[e.id]=e);
@@ -956,6 +973,62 @@ function saveEditItem(){
   if(L&&L.items[editItemCtx.idx]&&txt){L.items[editItemCtx.idx].t=txt;save();renderLists();renderDays();}
   document.getElementById("editItemModal").classList.remove("open");
   editItemCtx=null;
+}
+/* ============================================================
+   DAY MAP — Leaflet + OpenStreetMap, pins from ThemeParks.wiki geo
+   ============================================================ */
+const PARK_CENTER={MK:[28.4177,-81.5812],EP:[28.3747,-81.5494],HS:[28.3575,-81.5583],AK:[28.3553,-81.5901]};
+let leafletReady=null, mapObj=null;
+function loadLeaflet(){
+  if(leafletReady) return leafletReady;
+  leafletReady=new Promise((res,rej)=>{
+    const css=document.createElement("link");
+    css.rel="stylesheet"; css.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+    document.head.appendChild(css);
+    const js=document.createElement("script");
+    js.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    js.onload=()=>res(); js.onerror=()=>{leafletReady=null;rej(new Error("leaflet"));};
+    document.head.appendChild(js);
+  });
+  return leafletReady;
+}
+function geoFor(name){
+  if(!S.geo) return null;
+  const key=norm(name).replace(/[™®']/g,"");
+  if(S.geo[key]) return S.geo[key];
+  const base=key.split(" (")[0];
+  for(const k in S.geo){ if(k.includes(base)||base.includes(k)) return S.geo[k]; }
+  return null;
+}
+async function openDayMap(day){
+  try{ await loadLeaflet(); }
+  catch(e){ alert("The map needs an internet connection to load the first time — try again when you have signal."); return; }
+  document.getElementById("mapTitle").textContent=`🗺 ${day.label} — ${PARKS[day.park].name}`;
+  document.getElementById("mapModal").classList.add("open");
+  if(mapObj){ mapObj.remove(); mapObj=null; }
+  mapObj=L.map("mapCanvas",{zoomControl:true}).setView(PARK_CENTER[day.park],16);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(mapObj);
+  const bounds=[]; const unpinned=[];
+  day.items.forEach(it=>{
+    const info=itemInfo(it); if(!info) return;
+    const isRide=it.kind==="ride";
+    const entity=isRide?allRides().find(x=>x.id===it.refId):it.kind==="food"?allFood().find(x=>x.id===it.refId):null;
+    if(!entity){ return; }
+    const pos=geoFor(entity.name);
+    if(!pos){ unpinned.push({nm:info.nm,loc:entity.loc||null}); return; }
+    const color=isRide?"#e0a400":"#0aa6a0";
+    const icon=L.divIcon({className:"",html:`<div class="pinBadge" style="background:${color}"><span>${isRide?"🎢":"🍽"}</span></div>`,iconSize:[28,28],iconAnchor:[14,28]});
+    const m=L.marker(pos,{icon}).addTo(mapObj);
+    m.bindPopup(`<b>${esc(info.nm)}</b><br>${esc(info.sub)}${it.time?`<br>🕐 ${esc(fmtTime(it.time))}`:""}`);
+    bounds.push(pos);
+  });
+  if(bounds.length) mapObj.fitBounds(bounds,{padding:[36,36],maxZoom:17});
+  const un=document.getElementById("mapUnpinned");
+  un.innerHTML=unpinned.length
+    ? "Not pinned (no coordinates yet): "+unpinned.map(u=>`<b>${esc(u.nm)}</b>${u.loc?` <span class="locChip">📍 ${esc(u.loc)}</span>`:""}`).join(" · ")
+      +(S.geo&&Object.keys(S.geo).length?"":" — tap ⇩ Sync all in the Rides tab once to download map positions.")
+    : "";
+  setTimeout(()=>mapObj.invalidateSize(),120);
 }
 function renderAlertsPanel(){
   const el=document.getElementById("alertsList");
@@ -1176,6 +1249,7 @@ function renderDays(){
          ${Object.entries(PARKS).map(([k,v])=>`<option value="${k}" ${d.park===k?"selected":""}>${v.name}</option>`).join("")}
        </select>
      </h3>
+     ${d.park?`<button class="btn ghost small" data-daymap="${d.id}" style="margin-top:6px">🗺 Map this day</button>`:""}
      ${(()=>{const lbl=dayDateLabel(di);
         if(lbl) return `<div class="dayDate">📅 ${lbl}</div>`;
         if(di===0) return `<div class="dayDate pick">📅 First park day: <input type="date" data-firstdate value=""></div>`;
@@ -1316,6 +1390,10 @@ async function syncAll(){
       if(!res.ok) continue;
       const data=await res.json();ok=true;
       (data.children||[]).forEach(e=>{
+        if(e.location&&e.location.latitude&&e.name){
+          S.geo=S.geo||{};
+          S.geo[norm(e.name).replace(/[™®']/g,"")]=[+e.location.latitude,+e.location.longitude];
+        }
         if(e.entityType==="ATTRACTION"&&!known(allRides(),e.name)){
           S.extraRides.push({id:"x-"+(e.id||uid()),park:p,name:e.name,ht:-1,tag:"Synced"});addedR++;
         }
@@ -1485,6 +1563,8 @@ document.body.addEventListener("click",e=>{
   const bell=t.closest("[data-bell]");
   if(bell){toggleWatch(bell.dataset.bell);return;}
   if(t.id==="alertsBtn"){openAlerts();return;}
+  if(t.dataset.daymap){const day=S.days.find(x=>x.id===t.dataset.daymap);if(day)openDayMap(day);return;}
+  if(t.id==="mapClose"||t.id==="mapModal"){document.getElementById("mapModal").classList.remove("open");return;}
   if(t.id==="addFoodBtn"){openFoodModal(null);return;}
   if(t.id==="cfSave"){saveFoodModal();return;}
   if(t.id==="cfCancel"||t.id==="foodModal"){document.getElementById("foodModal").classList.remove("open");editingFoodId=null;return;}
