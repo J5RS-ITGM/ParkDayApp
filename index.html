@@ -173,7 +173,8 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .gate .ok{background:#e2f5ea;color:var(--green)} .gate .ok .av{background:var(--green)}
 .gate .no{background:#fde8ee;color:var(--coral)} .gate .no .av{background:var(--coral)}
 .gate .short{font-size:.68rem;font-weight:800}
-.rideActions{display:flex;gap:8px}
+.rideActions{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:560px){.rideActions .btn{flex:1;min-width:110px}}
 
 /* ---------- food ---------- */
 .allergyFlag{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:800;border-radius:6px;padding:3px 8px;background:#fde8ee;color:var(--coral)}
@@ -202,13 +203,26 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .chip.on{background:#fde8ee;color:var(--coral);border-color:#f7b8c9}
 
 /* ---------- plan / days ---------- */
-.dayCard h3{display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:600}
-.planItem{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed #e3e8f2}
+.dayCard h3{display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:600;flex-wrap:wrap}
+.dayCard h3 select{min-width:150px}
+.planItem{padding:10px 0;border-bottom:1px dashed #e3e8f2}
 .planItem:last-child{border-bottom:none}
+.piMain{display:flex;align-items:center;gap:10px}
 .planItem .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
-.planItem .nm{flex:1;font-size:.92rem;font-weight:700}
+.piBody{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.planItem .nm{font-size:.92rem;font-weight:700;line-height:1.3}
 .planItem .sub{font-size:.72rem;color:#8b90ad;font-weight:700}
-.planItem button{border:none;background:none;color:#b8bdd6;font-size:1rem;cursor:pointer;min-width:36px;min-height:36px}
+.piCtl{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.piCtl button{border:none;background:#f2f4fb;color:#9aa0bd;border-radius:8px;width:30px;height:30px;font-size:.72rem;cursor:pointer;line-height:1;display:grid;place-items:center}
+.piCtl button.rm{color:#c98a9c}
+.piCtl button:active{background:#e3e8f6}
+.kidDots{display:inline-flex;align-items:center;border:none;background:#f6f8fd;border-radius:99px;padding:4px 10px 4px 5px;margin:8px 0 0 20px;cursor:pointer;gap:0}
+.kidDots .kd{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:'Fredoka';font-weight:600;font-size:.72rem;margin-left:-6px;border:2px solid #f6f8fd}
+.kidDots .kd:first-child{margin-left:0}
+.kidDots .kd.ok{background:var(--green)}
+.kidDots .kd.no{background:var(--coral)}
+.kidDots .kd.unk{background:#9aa0bd}
+.kidDots .kdHint{font-size:.7rem;font-weight:800;color:#5a5f80;margin-left:8px;white-space:nowrap}
 
 /* ---------- checklist ---------- */
 .todo{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed #e3e8f2}
@@ -220,10 +234,8 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .addRow{display:flex;gap:8px;margin-top:10px}
 .addRow input{flex:1}
 
-.planItem{flex-wrap:wrap}
-.planItem .expandBtn{border:none;background:#eef1f9;color:var(--night);border-radius:8px;min-width:36px;min-height:36px;cursor:pointer;font-size:.8rem;font-weight:800}
-.planItem .expandGate{width:100%;padding:8px 0 4px 20px}
-.planItem input[type=time]{width:auto;padding:5px 6px;font-size:.8rem;border-radius:8px;border:1.5px solid #dde3f0;font-family:'Nunito';font-weight:700;color:var(--night)}
+.planItem .expandGate{padding:8px 0 2px 20px}
+.piCtl input[type=time]{width:auto;padding:4px 5px;font-size:.76rem;border-radius:8px;border:1.5px solid #dde3f0;font-family:'Nunito';font-weight:700;color:var(--night);margin-right:2px}
 .timeChip{font-size:.7rem;font-weight:800;background:#fff4d6;color:#8a6400;border-radius:6px;padding:2px 6px;margin-left:6px}
 .dayFilter{display:flex;gap:6px;margin:8px 0 2px}
 .dayFilter button{border:none;cursor:pointer;font-size:.72rem;font-weight:800;font-family:'Nunito';padding:5px 10px;border-radius:99px;background:#eef1f9;color:#5a5f80;min-height:32px}
@@ -407,7 +419,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.2</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.3</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -968,6 +980,17 @@ function pillbar(elId,cur,onpick){
   el.innerHTML=opts.map(([k,n])=>`<button class="pill p-${k} ${cur===k?"active":""}" data-park="${k}">${n}</button>`).join("");
   el.querySelectorAll(".pill").forEach(b=>b.onclick=()=>onpick(b.dataset.park));
 }
+function kidDotsHTML(ride,key,open){
+  if(!S.kids.length) return "";
+  if(ride.ht===-1) return `<button class="kidDots" data-expand="${key}" aria-expanded="${open}" aria-label="Height not on file"><span class="kd unk">?</span><span class="kdHint">check sign</span></button>`;
+  const dots=S.kids.map(k=>{
+    const h=Number(k.heightIn)||0;
+    const ok=!ride.ht||h>=ride.ht;
+    return `<span class="kd ${ok?"ok":"no"}" title="${esc(k.name)}">${(k.name||"?").slice(0,1).toUpperCase()}</span>`;
+  }).join("");
+  const oks=S.kids.filter(k=>!ride.ht||(Number(k.heightIn)||0)>=ride.ht).length;
+  return `<button class="kidDots" data-expand="${key}" aria-expanded="${open}" aria-label="Who can ride">${dots}<span class="kdHint">${oks}/${S.kids.length} can ride ${open?"▴":"▾"}</span></button>`;
+}
 function gateHTML(ride){
   if(ride.ht===-1) return `<div class="hint">Height requirement not on file — check the sign at the entrance or My Disney Experience.</div>`;
   if(!S.kids.length) return `<div class="hint">Add kids in the Family tab to see who can ride.</div>`;
@@ -1082,13 +1105,19 @@ function renderDays(){
           const ride=isRide?allRides().find(x=>x.id===it.refId):null;
           const open=openGates.has(key);
           return `<div class="planItem">
-            <span class="dot" style="background:${info.color}"></span>
-            <span style="flex:1"><span class="nm">${esc(info.nm)}</span>${it.time?`<span class="timeChip">🕐 ${esc(fmtTime(it.time))}</span>`:""}<br><span class="sub">${esc(info.sub)}</span></span>
-            ${isFood?`<input type="time" value="${esc(it.time||"")}" data-timeidx="${ii}" aria-label="Meal time">`:""}
-            ${isRide&&ride?`<button class="expandBtn" data-expand="${key}" aria-label="Show who can ride" aria-expanded="${open}">${open?"▲ kids":"▼ kids"}</button>`:""}
-            ${(dayFilters[d.id]||"all")==="all"?`<button data-move="up:${ii}" aria-label="Move up">▲</button>
-            <button data-move="down:${ii}" aria-label="Move down">▼</button>`:""}
-            <button data-rm="${ii}" aria-label="Remove">✕</button>
+            <div class="piMain">
+              <span class="dot" style="background:${info.color}"></span>
+              <span class="piBody">
+                <span class="nm">${esc(info.nm)}${it.time?` <span class="timeChip">🕐 ${esc(fmtTime(it.time))}</span>`:""}</span>
+                <span class="sub">${esc(info.sub)}</span>
+              </span>
+              <span class="piCtl">
+                ${isFood?`<input type="time" value="${esc(it.time||"")}" data-timeidx="${ii}" aria-label="Meal time">`:""}
+                ${(dayFilters[d.id]||"all")==="all"?`<button data-move="up:${ii}" aria-label="Move up">▲</button><button data-move="down:${ii}" aria-label="Move down">▼</button>`:""}
+                <button class="rm" data-rm="${ii}" aria-label="Remove">✕</button>
+              </span>
+            </div>
+            ${isRide&&ride?kidDotsHTML(ride,key,open):""}
             ${open&&ride?`<div class="expandGate">${gateHTML(ride)}</div>`:""}
           </div>`;}).join(""):`<div class="hint">Nothing planned yet — add rides &amp; food from their tabs, or a note below.</div>`}
      </div>
