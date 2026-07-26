@@ -206,17 +206,76 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .notice{font-size:.78rem;background:#fff8e6;border:1px solid #f5e2a8;color:#7a5d00;border-radius:10px;padding:8px 10px;margin-bottom:10px;line-height:1.4}
 footer.credit{max-width:720px;margin:8px auto 0;padding:0 16px;font-size:.7rem;color:#a0a5c2;text-align:center}
 footer.credit a{color:#7b82b8}
+
+/* ---------- password gate ---------- */
+body.locked > header, body.locked > main, body.locked > nav, body.locked > footer{display:none}
+#gateScreen{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:linear-gradient(160deg,var(--night) 0%,var(--night-2) 70%);
+  align-items:center;justify-content:center;padding:24px;
+}
+body.locked #gateScreen{display:flex}
+.gateBox{width:100%;max-width:360px;text-align:center;color:#fff}
+.gateBox img{width:96px;height:96px;border-radius:22px;margin-bottom:14px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.gateBox h2{font-family:'Fredoka';font-weight:600;font-size:1.4rem;margin-bottom:4px}
+.gateBox p{font-size:.85rem;color:#cdd4ff;margin-bottom:16px}
+.gateBox input[type=password]{
+  font-family:'Nunito';font-size:1.05rem;text-align:center;letter-spacing:1px;
+  width:100%;border:none;border-radius:12px;padding:13px 14px;margin-bottom:10px;
+  background:rgba(255,255,255,.14);color:#fff;outline:none;
+}
+.gateBox input[type=password]::placeholder{color:#9aa3d8}
+.gateBox input[type=password]:focus{background:rgba(255,255,255,.22)}
+.gateBox .btn{width:100%;font-size:1.05rem;min-height:50px}
+.gateErr{min-height:20px;font-size:.8rem;font-weight:800;color:#ffb3c6;margin-top:8px}
+.gateBox.shake{animation:gshake .3s}
+@keyframes gshake{25%{transform:translateX(-7px)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}}
+
+/* ---------- desktop / wide screens ---------- */
+@media (min-width:760px){
+  main{padding:22px 24px 32px}
+  header{border-radius:0}
+  header .hwrap{max-width:1080px;margin:0 auto;position:relative}
+  nav{border-radius:16px 16px 0 0;left:50%;right:auto;transform:translateX(-50%);width:100%;max-width:560px;box-shadow:0 -2px 14px rgba(35,42,92,.10);border:1px solid #e3e8f2;border-bottom:none}
+}
+@media (min-width:900px){
+  main, footer.credit{max-width:1080px}
+  #ridesList,#foodList,#kidsList,#listsWrap{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  #ridesList .card,#foodList .card,#kidsList .card,#listsWrap .listCard{margin-bottom:0}
+  #daysList{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  #daysList > .card{margin-bottom:0}
+}
+@media (min-width:1280px){
+  #ridesList,#foodList{grid-template-columns:1fr 1fr 1fr}
+}
 </style>
 </head>
 <body>
+<script>
+/* lock before first paint so the app never flashes for locked visitors */
+try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf50720c0a534d934f925f58b43ce417c5af9ad3") document.body.classList.add("locked"); }catch(e){ document.body.classList.add("locked"); }
+</script>
+<div id="gateScreen" role="dialog" aria-label="Password required">
+  <div class="gateBox" id="gateBox">
+    <img src="apple-touch-icon.png" alt="" onerror="this.style.display='none'">
+    <h2>Park Day</h2>
+    <p>Enter the family password to open the planner.</p>
+    <input type="password" id="gatePw" placeholder="Password" autocomplete="current-password" enterkeyhint="go">
+    <button class="btn gold" id="gateGo">Let&rsquo;s go! 🏰</button>
+    <div class="gateErr" id="gateErr"></div>
+  </div>
+</div>
+
 <header>
   <div class="stars" id="stars"></div>
+  <div class="hwrap">
   <span class="saveState" id="saveState">saved</span>
-  <span class="saveState" style="right:auto;left:14px;top:auto;bottom:8px;opacity:.7">v2.3 — castle icon</span>
+  <span class="saveState" style="right:auto;left:14px;top:auto;bottom:8px;opacity:.7">v3.0 — desktop + lock</span>
   <h1><input id="tripName" value="Our Disney Trip" aria-label="Trip name"></h1>
   <div class="countdown">
     <span id="cdText"><b id="cdDays">—</b> days to go</span>
     <input type="date" id="tripDate" aria-label="Trip start date">
+  </div>
   </div>
 </header>
 
@@ -270,6 +329,57 @@ footer.credit a{color:#7b82b8}
 </nav>
 <footer class="credit">Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
+/* ============================================================
+   PASSWORD GATE
+   To change the password: ask Claude to re-hash a new one, or in the
+   browser console run:
+     crypto.subtle.digest("SHA-256", new TextEncoder().encode("NewPassword"))
+       .then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")))
+   then paste the printed hash into GATE_HASH below. Changing the hash
+   re-locks every device on its next visit.
+   ============================================================ */
+const GATE_HASH = "d5dd32976cdfcd59ed420a6aaf50720c0a534d934f925f58b43ce417c5af9ad3";
+const GATE_KEY  = "park-day-gate-v1";
+
+async function gateHash(str){
+  if(crypto && crypto.subtle){
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,"0")).join("");
+  }
+  /* fallback (non-secure contexts only, e.g. plain-http preview) */
+  let h1=0x811c9dc5, h2=0x1000193;
+  for(const c of str){h1=(h1^c.charCodeAt(0))*16777619>>>0; h2=(h2+c.charCodeAt(0)*31)>>>0;}
+  return "fnv-"+h1.toString(16)+h2.toString(16);
+}
+function gateRemembered(){
+  try{ return localStorage.getItem(GATE_KEY) === GATE_HASH; }catch(e){ return false; }
+}
+function gateUnlock(){
+  try{ localStorage.setItem(GATE_KEY, GATE_HASH); }catch(e){}
+  document.body.classList.remove("locked");
+}
+async function gateTry(){
+  const pw = document.getElementById("gatePw");
+  const err = document.getElementById("gateErr");
+  const box = document.getElementById("gateBox");
+  const val = pw.value.trim();
+  if(!val) return;
+  const h = await gateHash(val);
+  if(h === GATE_HASH){ gateUnlock(); }
+  else{
+    err.textContent = "Hmm, that's not it — try again!";
+    pw.value = ""; pw.focus();
+    box.classList.remove("shake"); void box.offsetWidth; box.classList.add("shake");
+  }
+}
+document.addEventListener("DOMContentLoaded", ()=>{
+  if(gateRemembered()){ document.body.classList.remove("locked"); return; }
+  const pw = document.getElementById("gatePw");
+  document.getElementById("gateGo").addEventListener("click", gateTry);
+  pw.addEventListener("keydown", e=>{ if(e.key==="Enter") gateTry(); });
+  setTimeout(()=>pw.focus(), 150);
+});
+
 /* ============================================================
    DATA — Walt Disney World rides (height reqs in inches) & dining
    ============================================================ */
