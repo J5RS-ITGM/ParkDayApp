@@ -1,27 +1,30 @@
-# Park Day — Disney Trip Planner (PWA)
+# Park Day — family Disney trip planner (v4.0)
 
-Family trip planner for Walt Disney World. Single-file app, no build step, no backend.
+Self-contained PWA + tiny sync backend. Three families, one live plan.
 
-## Features
-- Kid profiles with heights (inches) — every ride card shows who clears the height requirement
-- Allergy profiles — dining cards flag family allergens; honest "no data" badge where unknown
-- Day planner per park with meal times, filters, and reorderable items
-- "Foods to try" lists with restaurant links; linked items auto-surface on the matching park day
-- Live wait times + full ride/restaurant roster sync via ThemeParks.wiki (free, no key)
-- Offline-capable PWA (service worker), installable on iOS/Android
+## Layout
+- `index.html`, `manifest.json`, `sw.js`, icons → static app, served from
+  `/home/j5rescue/htdocs/j5rescue.com/FamilyFunWeek/`
+- `sync-server/` → FastAPI + SQLite sync service (Docker, loopback :8787),
+  reverse-proxied at `/FamilyFunWeek/api/`
 
-## Files
-- `index.html` — the entire app (data, styles, logic)
-- `manifest.json`, `sw.js`, `icon.svg`, `icon-512.png`, `apple-touch-icon.png` — PWA shell
+## Deploy (store box)
+```
+deploy-parkday                      # static app: pull + copy + chown
+cd /opt/parkday/sync-server
+docker compose up -d --build        # sync backend
+```
+nginx location block: see `sync-server/nginx-snippet.txt` (CloudPanel vhost editor).
 
-## Deploy
-Static hosting only. Either:
-- Copy the folder to a web root, e.g. `htdocs/j5rescue.com/parkday/` → https://j5rescue.com/parkday/
-- Or connect the repo to Cloudflare Pages (build command: none, output dir: /)
+## Password
+Client gate and server share the same secret: SHA-256 of the family password.
+- Client: `GATE_HASH` in index.html
+- Server: `PARKDAY_KEY` in sync-server/docker-compose.yml
+Change both together, then `docker compose up -d` to restart.
 
-## Data & privacy
-All user data (kids, plans, lists) is stored in the browser's localStorage on each device.
-Nothing is sent to any server. Deleting the hosted files destroys no one's data.
-
-## Removal
-Delete the folder (or the Pages project). No DB, no services, no cron.
+## Sync model
+Whole plan stored server-side as one blob with a rev counter. Clients pull
+every 20 s + on focus, push 1.5 s after edits. Merge is per-entity
+(kid/day/list): newest edit wins, deletions tombstoned 45 days, a newer
+edit revives a deleted entity. Offline edits queue and reconcile on
+reconnect. Conflicting edits to the SAME day/list/kid: last writer wins.

@@ -270,7 +270,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <div class="stars" id="stars"></div>
   <div class="hwrap">
   <span class="saveState" id="saveState">saved</span>
-  <span class="saveState" style="right:auto;left:14px;top:auto;bottom:8px;opacity:.7">v3.0 — desktop + lock</span>
+  <span class="saveState" style="right:auto;left:14px;top:auto;bottom:8px;opacity:.7">v4.0 — family sync</span>
   <h1><input id="tripName" value="Our Disney Trip" aria-label="Trip name"></h1>
   <div class="countdown">
     <span id="cdText"><b id="cdDays">—</b> days to go</span>
@@ -545,7 +545,112 @@ let S={
 const allRides=()=>RIDES.concat(S.extraRides||[]);
 const allFood=()=>FOOD.concat(S.extraFood||[]);
 const uid=()=>Math.random().toString(36).slice(2,9);
-const save=()=>store.save(S);
+
+/* ============================================================
+   SYNC — shared family plan across devices
+   Entities (kids, days, lists) carry _ts; newest edit wins per
+   entity. Deletions leave tombstones so they don't resurrect.
+   ============================================================ */
+const API_URL="api/state";
+const COLLS=["kids","days","lists"];
+let snap=null, srvRev=null, pushTimer=null, pushing=false, syncOK=false;
+
+function authKey(){ try{const v=localStorage.getItem(GATE_KEY); if(v) return v;}catch(e){} return GATE_HASH; }
+function ensureSyncFields(st){
+  st.tomb=st.tomb||{}; COLLS.forEach(c=>{st.tomb[c]=st.tomb[c]||{}; st[c]=st[c]||[];});
+  st._metaTs=st._metaTs||0; st._auxTs=st._auxTs||0;
+  return st;
+}
+const entJson=e=>{const {_ts,...rest}=e; return JSON.stringify(rest);};
+function buildSnap(){
+  snap={meta:JSON.stringify([S.tripName,S.tripDate]),
+        aux:JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync])};
+  COLLS.forEach(c=>{snap[c]={}; (S[c]||[]).forEach(e=>{snap[c][e.id]=entJson(e);});});
+}
+function stampChanges(){
+  if(!snap){buildSnap();return;}
+  const now=Date.now();
+  COLLS.forEach(c=>{
+    const seen={};
+    (S[c]||[]).forEach(e=>{seen[e.id]=1; if(snap[c][e.id]!==entJson(e)) e._ts=now;});
+    Object.keys(snap[c]).forEach(id=>{ if(!seen[id]) S.tomb[c][id]=now; });
+  });
+  if(snap.meta!==JSON.stringify([S.tripName,S.tripDate])) S._metaTs=now;
+  if(snap.aux!==JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync])) S._auxTs=now;
+  buildSnap();
+}
+/* merge remote into S; returns {localChanged, needPush} */
+function mergeRemote(remote){
+  if(!remote) return {localChanged:false, needPush:true};
+  ensureSyncFields(remote); ensureSyncFields(S);
+  const before=JSON.stringify(S);
+  if((remote._metaTs||0)>(S._metaTs||0)){S.tripName=remote.tripName;S.tripDate=remote.tripDate;S._metaTs=remote._metaTs;}
+  if((remote._auxTs||0)>(S._auxTs||0)){S.waits=remote.waits||{};S.extraRides=remote.extraRides||[];S.extraFood=remote.extraFood||[];S.lastSync=remote.lastSync||"";S._auxTs=remote._auxTs;}
+  COLLS.forEach(c=>{
+    const L={},R={};
+    (S[c]||[]).forEach(e=>L[e.id]=e); (remote[c]||[]).forEach(e=>R[e.id]=e);
+    const tombs={...(remote.tomb[c]||{})};
+    Object.entries(S.tomb[c]||{}).forEach(([id,ts])=>{tombs[id]=Math.max(ts,tombs[id]||0);});
+    const out=[]; const ids=new Set([...Object.keys(L),...Object.keys(R)]);
+    ids.forEach(id=>{
+      const le=L[id], re=R[id];
+      const ets=Math.max(le?le._ts||0:0, re?re._ts||0:0);
+      if((tombs[id]||0)>ets) return;               // deleted, and deletion is newest
+      delete tombs[id];                             // entity edit is newer → revive
+      if(le&&re) out.push((re._ts||0)>(le._ts||0)?re:le);
+      else out.push(le||re);
+    });
+    /* keep original ordering feel: local order first, then new remote-only entities */
+    const order={}; (S[c]||[]).forEach((e,i)=>order[e.id]=i);
+    out.sort((a,b)=>(order[a.id]??999)-(order[b.id]??999));
+    S[c]=out; S.tomb[c]=tombs;
+  });
+  /* prune tombstones older than 45 days */
+  const cutoff=Date.now()-45*864e5;
+  COLLS.forEach(c=>Object.keys(S.tomb[c]).forEach(id=>{if(S.tomb[c][id]<cutoff)delete S.tomb[c][id];}));
+  const after=JSON.stringify(S);
+  return {localChanged:after!==before, needPush:after!==JSON.stringify(remote)};
+}
+async function apiFetch(method,body){
+  const r=await fetch(API_URL,{method,headers:{"Content-Type":"application/json","X-Park-Key":authKey()},body:body?JSON.stringify(body):undefined});
+  if(r.status===401){setSaved("sync: wrong password");throw new Error("auth");}
+  return r;
+}
+async function pullSync(){
+  try{
+    const r=await apiFetch("GET"); if(!r.ok) throw new Error(r.status);
+    const {rev,data}=await r.json(); srvRev=rev;
+    const {localChanged,needPush}=mergeRemote(data);
+    if(localChanged){buildSnap(); await store.save(S); renderAll();}
+    syncOK=true;
+    if(needPush) await pushSync(); else setSaved("✓ synced");
+  }catch(e){ if(e.message!=="auth"){syncOK=false; setSaved("offline — saved on device");} }
+}
+async function pushSync(attempt=0){
+  if(pushing||attempt>3) return; pushing=true;
+  try{
+    setSaved("syncing…");
+    const r=await apiFetch("PUT",{rev:srvRev,data:S});
+    if(r.status===409){
+      const {rev,data}=await r.json(); srvRev=rev;
+      const {localChanged}=mergeRemote(data);
+      if(localChanged){buildSnap(); await store.save(S); renderAll();}
+      pushing=false; return pushSync(attempt+1);
+    }
+    if(!r.ok) throw new Error(r.status);
+    const {rev}=await r.json(); srvRev=rev; syncOK=true; setSaved("✓ synced");
+  }catch(e){ if(e.message!=="auth"){syncOK=false; setSaved("offline — saved on device");} }
+  pushing=false;
+}
+function schedulePush(){ clearTimeout(pushTimer); pushTimer=setTimeout(()=>{ if(syncOK) pushSync(); else pullSync(); },1500); }
+function startSync(){
+  pullSync();
+  setInterval(()=>{ if(document.visibilityState==="visible"&&!pushing) pullSync(); },20000);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") pullSync(); });
+}
+function renderAll(){renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();}
+
+const save=()=>{ ensureSyncFields(S); stampChanges(); schedulePush(); return store.save(S); };
 
 /* ============================================================
    RENDER — FAMILY
@@ -1007,6 +1112,7 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   }
   }catch(e){ console.warn("Saved data couldn't be read — starting fresh.",e); }
   renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();
+  ensureSyncFields(S); buildSnap(); startSync();
 })();
 </script>
 </body>
