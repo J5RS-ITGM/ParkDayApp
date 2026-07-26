@@ -222,6 +222,8 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .planItem:last-child{border-bottom:none}
 .piMain{display:flex;align-items:center;gap:10px}
 .planItem .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.numBadge{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-family:'Fredoka';font-weight:600;font-size:.75rem}
+.todo .txt{line-height:1.45}
 .piBody{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .planItem .nm{font-size:.92rem;font-weight:700;line-height:1.3}
 .planItem .sub{font-size:.72rem;color:#8b90ad;font-weight:700}
@@ -384,6 +386,10 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
     <input type="text" id="cfLoc" placeholder="e.g. Fantasyland, near the Mad Tea Party">
     <label class="f">Notes</label>
     <textarea id="cfNotes" rows="2" placeholder="e.g. Cake cups! Cash-free, seasonal hours"></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+      <button class="btn ghost small" id="cfPin">📍 Drop pin on map</button>
+      <span class="hint" id="cfPinStatus">no pin yet</span>
+    </div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn gold" id="cfSave" style="flex:1">Save</button>
       <button class="btn ghost" id="cfCancel" style="flex:1">Cancel</button>
@@ -404,7 +410,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
 
 <div id="mapModal" role="dialog" aria-label="Day map">
   <div class="mapBox">
-    <div class="mapHead"><h3 id="mapTitle">🗺 Day map</h3><button class="btn ghost small" id="mapClose">✕ Close</button></div>
+    <div class="mapHead"><h3 id="mapTitle">🗺 Day map</h3><span style="display:flex;gap:6px"><button class="btn gold small" id="mapPickUse" style="display:none">✓ Use pin</button><button class="btn ghost small" id="mapClose">✕ Close</button></span></div>
     <div id="mapCanvas"></div>
     <div id="mapUnpinned" class="hint" style="padding:8px 12px"></div>
   </div>
@@ -471,7 +477,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.5</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.6</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -928,6 +934,8 @@ async function toggleWatch(rideName){
 let editingFoodId=null;
 function openFoodModal(f){
   editingFoodId=f?f.id:null;
+  pendingPin=(f&&f.lat!=null)?[+f.lat,+f.lon]:null;
+  updatePinStatus();
   document.getElementById("foodModalTitle").textContent=f?"✎ Edit food spot":"🍦 Add a food spot";
   document.getElementById("cfPark").innerHTML=Object.entries(PARKS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
   document.getElementById("cfName").value=f?f.name:"";
@@ -947,7 +955,8 @@ function saveFoodModal(){
     type:document.getElementById("cfType").value.trim()||"Snack",
     loc:document.getElementById("cfLoc").value.trim(),
     notes:document.getElementById("cfNotes").value.trim(),
-    flags:null, custom:true
+    flags:null, custom:true,
+    ...(pendingPin?{lat:pendingPin[0],lon:pendingPin[1]}:{lat:null,lon:null})
   };
   if(editingFoodId){
     const f=S.customFood.find(x=>x.id===editingFoodId);
@@ -956,8 +965,11 @@ function saveFoodModal(){
     S.customFood.push({id:"cf-"+uid(),...data});
   }
   document.getElementById("foodModal").classList.remove("open");
-  editingFoodId=null;
+  editingFoodId=null; pendingPin=null;
   save();renderFood();renderDays();
+}
+function updatePinStatus(){
+  document.getElementById("cfPinStatus").textContent=pendingPin?"📍 pinned ✓ (tap to adjust)":"no pin yet";
 }
 let editItemCtx=null;   // {listId, idx}
 function openEditItem(L,idx){
@@ -1004,30 +1016,71 @@ async function openDayMap(day){
   try{ await loadLeaflet(); }
   catch(e){ alert("The map needs an internet connection to load the first time — try again when you have signal."); return; }
   document.getElementById("mapTitle").textContent=`🗺 ${day.label} — ${PARKS[day.park].name}`;
+  document.getElementById("mapPickUse").style.display="none";
   document.getElementById("mapModal").classList.add("open");
   if(mapObj){ mapObj.remove(); mapObj=null; }
   mapObj=L.map("mapCanvas",{zoomControl:true}).setView(PARK_CENTER[day.park],16);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(mapObj);
   const bounds=[]; const unpinned=[];
-  day.items.forEach(it=>{
-    const info=itemInfo(it); if(!info) return;
-    const isRide=it.kind==="ride";
-    const entity=isRide?allRides().find(x=>x.id===it.refId):it.kind==="food"?allFood().find(x=>x.id===it.refId):null;
-    if(!entity){ return; }
-    const pos=geoFor(entity.name);
-    if(!pos){ unpinned.push({nm:info.nm,loc:entity.loc||null}); return; }
-    const color=isRide?"#e0a400":"#0aa6a0";
-    const icon=L.divIcon({className:"",html:`<div class="pinBadge" style="background:${color}"><span>${isRide?"🎢":"🍽"}</span></div>`,iconSize:[28,28],iconAnchor:[14,28]});
-    const m=L.marker(pos,{icon}).addTo(mapObj);
-    m.bindPopup(`<b>${esc(info.nm)}</b><br>${esc(info.sub)}${it.time?`<br>🕐 ${esc(fmtTime(it.time))}`:""}`);
+  const pin=(pos,color,label,popup)=>{
+    const icon=L.divIcon({className:"",html:`<div class="pinBadge" style="background:${color}"><span>${label}</span></div>`,iconSize:[28,28],iconAnchor:[14,28]});
+    L.marker(pos,{icon}).addTo(mapObj).bindPopup(popup);
     bounds.push(pos);
+  };
+  const posOf=e=>e&&e.lat!=null?[+e.lat,+e.lon]:e?geoFor(e.name):null;
+  // numbered plan stops (rides + meals, in plan order)
+  let n=0;
+  day.items.forEach(it=>{
+    if(it.kind!=="ride"&&it.kind!=="food") return;
+    const info=itemInfo(it); if(!info) return;
+    n++;
+    const isRide=it.kind==="ride";
+    const entity=isRide?allRides().find(x=>x.id===it.refId):allFood().find(x=>x.id===it.refId);
+    const pos=posOf(entity);
+    if(!pos){ unpinned.push({nm:n+". "+info.nm,loc:entity&&entity.loc||null}); return; }
+    pin(pos,isRide?"#e0a400":"#0aa6a0",n,
+      `<b>${n}. ${esc(info.nm)}</b><br>${esc(info.sub)}${it.time?`<br>🕐 ${esc(fmtTime(it.time))}`:""}`);
   });
+  // food-to-try from lists for this park (purple ★)
+  S.lists.forEach(Ls=>Ls.items.forEach(it=>{
+    if(!it.foodId||it.done) return;
+    const f=allFood().find(x=>x.id===it.foodId);
+    if(!f||f.park!==day.park) return;
+    const pos=posOf(f);
+    if(!pos){ unpinned.push({nm:"★ "+f.name,loc:f.loc||null}); return; }
+    pin(pos,"#7b5ea7","★",`<b>★ ${esc(f.name)}</b><br>${esc(it.t).replace(/\n/g,"<br>")}<br><i>from "${esc(Ls.title)}"</i>`);
+  }));
   if(bounds.length) mapObj.fitBounds(bounds,{padding:[36,36],maxZoom:17});
   const un=document.getElementById("mapUnpinned");
   un.innerHTML=unpinned.length
-    ? "Not pinned (no coordinates yet): "+unpinned.map(u=>`<b>${esc(u.nm)}</b>${u.loc?` <span class="locChip">📍 ${esc(u.loc)}</span>`:""}`).join(" · ")
+    ? "Not pinned yet: "+unpinned.map(u=>`<b>${esc(u.nm)}</b>${u.loc?` <span class="locChip">📍 ${esc(u.loc)}</span>`:""}`).join(" · ")
       +(S.geo&&Object.keys(S.geo).length?"":" — tap ⇩ Sync all in the Rides tab once to download map positions.")
     : "";
+  setTimeout(()=>mapObj.invalidateSize(),120);
+}
+
+/* ---- pin picker for custom food spots ---- */
+let pendingPin=null, pickMarker=null;
+async function openPinPicker(park){
+  try{ await loadLeaflet(); }
+  catch(e){ alert("The map needs internet to load — try again with signal."); return; }
+  document.getElementById("mapTitle").textContent="📍 Tap the map to drop your pin";
+  const useBtn=document.getElementById("mapPickUse");
+  useBtn.style.display="inline-block";
+  document.getElementById("mapUnpinned").innerHTML="Tap where the spot is. Drag to look around, tap ✓ Use pin when it's right.";
+  document.getElementById("mapModal").classList.add("open");
+  if(mapObj){ mapObj.remove(); mapObj=null; }
+  const start=pendingPin||PARK_CENTER[park||"MK"];
+  mapObj=L.map("mapCanvas",{zoomControl:true}).setView(start,pendingPin?18:16);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(mapObj);
+  pickMarker=null;
+  const place=ll=>{
+    pendingPin=[ll.lat,ll.lng];
+    const icon=L.divIcon({className:"",html:`<div class="pinBadge" style="background:#ef476f"><span>📍</span></div>`,iconSize:[28,28],iconAnchor:[14,28]});
+    if(pickMarker) pickMarker.setLatLng(ll); else pickMarker=L.marker(ll,{icon,draggable:true}).addTo(mapObj);
+  };
+  if(pendingPin) place({lat:pendingPin[0],lng:pendingPin[1]});
+  mapObj.on("click",e=>place(e.latlng));
   setTimeout(()=>mapObj.invalidateSize(),120);
 }
 function renderAlertsPanel(){
@@ -1202,7 +1255,7 @@ function renderFood(){
     return `
    <div class="card ride">
      <div class="top"><h3>${esc(f.name)}</h3><span class="parkTag t-${f.park}">${PARKS[f.park].short}</span></div>
-     <div class="meta"><span>${esc(f.type)}</span>${f.loc?`<span class="locChip">📍 ${esc(f.loc)}</span>`:""}${f.custom?`<span class="customTag">family add</span>`:""}</div>
+     <div class="meta"><span>${esc(f.type)}</span>${f.loc?`<span class="locChip">📍 ${esc(f.loc)}</span>`:""}${f.lat!=null?`<span class="locChip" style="background:#f0ebfa;color:#7b5ea7">📌 on map</span>`:""}${f.custom?`<span class="customTag">family add</span>`:""}</div>
      ${f.notes?`<div class="hint">${esc(f.notes).replace(/\n/g,"<br>")}</div>`:""}
      ${noData
         ?`<div><span class="allergyFlag" style="background:#fff4d6;color:#8a6400">ⓘ No allergen data — use Mobile Order's allergy filter or ask a chef</span></div>`
@@ -1256,7 +1309,7 @@ function renderDays(){
         return `<div class="dayDate dim">📅 Set the first day's date on Day 1</div>`;})()}
      ${d.items.length>1?`<div class="dayFilter">${[["all","All"],["ride","🎢 Rides"],["food","🍽 Food"],["note","📝 Notes"]].map(([k,n])=>`<button class="${(dayFilters[d.id]||"all")===k?"on":""}" data-dayfilter="${k}">${n}</button>`).join("")}</div>`:""}
      <div style="margin-top:8px">
-       ${d.items.length?d.items.map((it,ii)=>{
+       ${(()=>{const nums={};let __n=0;d.items.forEach((x,xi)=>{if(x.kind==="ride"||x.kind==="food")nums[xi]=++__n;});return d.items.length?d.items.map((it,ii)=>{
           const df=dayFilters[d.id]||"all";
           if(df!=="all"&&it.kind!==df) return "";
           const info=itemInfo(it); if(!info) return "";
@@ -1266,7 +1319,7 @@ function renderDays(){
           const open=openGates.has(key);
           return `<div class="planItem">
             <div class="piMain">
-              <span class="dot" style="background:${info.color}"></span>
+              ${nums[ii]?`<span class="numBadge" style="background:${info.color}">${nums[ii]}</span>`:`<span class="dot" style="background:${info.color}"></span>`}
               <span class="piBody">
                 <span class="nm">${esc(info.nm)}${it.time?` <span class="timeChip">🕐 ${esc(fmtTime(it.time))}</span>`:""}</span>
                 <span class="sub">${esc(info.sub)}</span>
@@ -1279,7 +1332,7 @@ function renderDays(){
             </div>
             ${isRide&&ride?kidDotsHTML(ride,key,open):""}
             ${open&&ride?`<div class="expandGate">${gateHTML(ride)}</div>`:""}
-          </div>`;}).join(""):`<div class="hint">Nothing planned yet — add rides &amp; food from their tabs, or a note below.</div>`}
+          </div>`;}).join(""):`<div class="hint">Nothing planned yet — add rides &amp; food from their tabs, or a note below.</div>`;})()}
      </div>
      ${(()=>{ if(!d.park) return "";
         const hits=[];
@@ -1364,7 +1417,7 @@ function renderLists(){
             ${i>0?`<button class="iUp" data-movetodo="${i}" aria-label="Move item up">▲</button>`:`<span class="iUp" style="visibility:hidden">▲</span>`}
             <button class="del" data-deltodo="${i}" aria-label="Delete">✕</button>
           </div>`).join("")||'<div class="hint" style="padding:8px 0">Empty — add the first item below.</div>'}</div>
-        <div class="addRow"><textarea rows="1" data-newitem placeholder="Add an item… (Shift+Enter for a new line)">${esc(draftText[L.id]||"")}</textarea><button class="btn small" data-additem>Add</button></div>
+        <div class="addRow"><textarea rows="1" data-newitem placeholder="Add an item… (Enter for a new line, tap Add to save)">${esc(draftText[L.id]||"")}</textarea><button class="btn small" data-additem>Add</button></div>
         ${(()=>{const c=linkedFood[L.id]?allFood().find(x=>x.id===linkedFood[L.id]):null;
           return c?`<div class="linkedChip"><span class="parkTag t-${c.park}" style="font-size:.6rem">${PARKS[c.park].short}</span>${esc(c.name)}<button class="clr" data-clearlink aria-label="Remove link">✕</button></div>
             <div class="hint" style="margin-top:4px">Linked — it'll attach to the next item you add.</div>`
@@ -1565,6 +1618,13 @@ document.body.addEventListener("click",e=>{
   if(t.id==="alertsBtn"){openAlerts();return;}
   if(t.dataset.daymap){const day=S.days.find(x=>x.id===t.dataset.daymap);if(day)openDayMap(day);return;}
   if(t.id==="mapClose"||t.id==="mapModal"){document.getElementById("mapModal").classList.remove("open");return;}
+  if(t.id==="cfPin"){openPinPicker(document.getElementById("cfPark").value);return;}
+  if(t.id==="mapPickUse"){
+    if(pickMarker){const ll=pickMarker.getLatLng();pendingPin=[ll.lat,ll.lng];}
+    document.getElementById("mapModal").classList.remove("open");
+    updatePinStatus();
+    return;
+  }
   if(t.id==="addFoodBtn"){openFoodModal(null);return;}
   if(t.id==="cfSave"){saveFoodModal();return;}
   if(t.id==="cfCancel"||t.id==="foodModal"){document.getElementById("foodModal").classList.remove("open");editingFoodId=null;return;}
@@ -1710,7 +1770,8 @@ document.body.addEventListener("change",e=>{
   }
 });
 document.body.addEventListener("keydown",e=>{
-  if(e.key==="Enter"&&!e.shiftKey&&e.target.matches("[data-newitem],[data-noteinput]")){
+  // Enter adds only in single-line inputs; in the list textarea Enter just makes a new line
+  if(e.key==="Enter"&&e.target.matches("[data-noteinput]")){
     e.preventDefault();
     const btn=e.target.parentElement.querySelector("button");btn&&btn.click();
   }
