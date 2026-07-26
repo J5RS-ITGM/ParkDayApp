@@ -334,7 +334,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
     <div class="tabTitle">Rides &amp; attractions <span style="display:flex;gap:6px"><button class="btn ghost small" id="syncBtn">⇩ Sync all</button><button class="btn ghost small" id="liveBtn">↻ Live waits</button></span></div>
     <input type="search" id="rideSearch" placeholder="🔍 Search rides… (e.g. coaster, Slinky, safari)" style="margin-bottom:8px">
     <div class="pills" id="ridePills"></div>
-    <div class="hint" style="margin-bottom:10px">Green means the child meets the height requirement, red means not yet. Heights come from the Family tab.</div>
+    <div class="hint" style="margin-bottom:10px">Green means the child meets the height requirement, red means not yet. Heights come from the Family tab. <span id="waitsUpdated" style="display:block;color:var(--teal);font-weight:800;margin-top:2px"></span></div>
     <div id="ridesList"></div>
   </section>
 
@@ -369,7 +369,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v4.5</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v4.6</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -1050,12 +1050,11 @@ async function syncAll(){
 /* ============================================================
    LIVE WAIT TIMES (ThemeParks.wiki — free, no key)
    ============================================================ */
-async function fetchWaits(){
+async function fetchWaits(quiet){
   const btn=document.getElementById("liveBtn");
-  btn.textContent="Loading…";btn.disabled=true;
+  if(!quiet){btn.textContent="Loading…";btn.disabled=true;}
   try{
-    const parks=rideFilter==="all"?Object.keys(TPW_IDS):[rideFilter];
-    for(const p of parks){
+    for(const p of Object.keys(TPW_IDS)){
       const res=await fetch(`https://api.themeparks.wiki/v1/entity/${TPW_IDS[p]}/live`);
       if(!res.ok) throw new Error("bad status");
       const data=await res.json();
@@ -1072,12 +1071,20 @@ async function fetchWaits(){
       for(const k in S.waits){ if(k.replace(/[™®']/g,"").includes(key.split(" (")[0])||key.includes(k.split(" (")[0])){ S.waits[r.name.toLowerCase()]=S.waits[k]; break; } }
     });
     save();renderRides();
+    const t=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+    const stamp=document.getElementById("waitsUpdated");
+    if(stamp) stamp.textContent=`Waits updated ${t} · auto-refreshes every 5 min`;
     btn.textContent="↻ Live waits";
   }catch(e){
     btn.textContent="↻ Live waits";
-    alert("Couldn't load live wait times right now (network or CORS). They'll work when the app is hosted with internet access.");
+    if(!quiet) alert("Couldn't load live wait times right now (network or CORS). They'll work when the app is hosted with internet access.");
   }
   btn.disabled=false;
+}
+function startWaitsAutoRefresh(){
+  fetchWaits(true);   // first pull on open
+  setInterval(()=>{ if(document.visibilityState==="visible") fetchWaits(true); }, 5*60*1000);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") fetchWaits(true); });
 }
 
 /* ============================================================
@@ -1167,7 +1174,7 @@ document.getElementById("tripName").oninput=e=>{S.tripName=e.target.value;save()
 document.getElementById("tripDate").onchange=e=>{S.tripDate=e.target.value;save();renderHeader();};
 document.getElementById("addKid").onclick=()=>{S.kids.push({id:uid(),name:"New kiddo",heightIn:"",allergies:[],locked:false});save();renderKids();renderRides();renderFood();};
 document.getElementById("addDay").onclick=()=>{S.days.push({id:uid(),label:"Day "+(S.days.length+1),park:"",items:[]});save();renderDays();};
-document.getElementById("liveBtn").onclick=fetchWaits;
+document.getElementById("liveBtn").onclick=()=>fetchWaits(false);
 document.getElementById("rideSearch").oninput=()=>renderRides();
 document.body.addEventListener("input",e=>{
   if(e.target.matches("[data-foodfind]")) renderFoodResults(e.target);
@@ -1318,6 +1325,7 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();
   ensureSyncFields(S); buildSnap(); startSync();
   loadWeather(); setInterval(loadWeather, 30*60*1000);
+  startWaitsAutoRefresh();
 })();
 </script>
 </body>

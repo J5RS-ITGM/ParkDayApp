@@ -1,5 +1,5 @@
 // Park Day — offline-first service worker
-const CACHE = "park-day-v9";
+const CACHE = "park-day-v10";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
