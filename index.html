@@ -483,7 +483,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.8</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.9</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -1320,9 +1320,14 @@ function fmtTime(t){ // "13:30" -> "1:30 PM"
   const ap=h>=12?"PM":"AM"; const hh=((h+11)%12)+1;
   return hh+":"+String(m).padStart(2,"0")+" "+ap;
 }
+function calIdxFor(di){
+  let c=-1;
+  for(let i=0;i<=di&&i<S.days.length;i++){ if(!S.days[i].cont) c++; }
+  return Math.max(c,0);
+}
 function dayDate(di){
   if(!S.tripDate) return null;
-  const d=new Date(S.tripDate+"T12:00:00"); d.setDate(d.getDate()+di);
+  const d=new Date(S.tripDate+"T12:00:00"); d.setDate(d.getDate()+calIdxFor(di));
   return d;
 }
 function dayDateLabel(di){
@@ -1671,8 +1676,13 @@ document.body.addEventListener("click",e=>{
   }
   if(t.dataset.splitday){
     const day=S.days.find(x=>x.id===t.dataset.splitday); if(!day) return;
-    const idx=S.days.indexOf(day);
-    S.days.splice(idx+1,0,{id:uid(),label:day.label+" pt 2",park:"",items:[]});
+    const base=day.label.replace(/ pt \d+$/,"");
+    // walk to the start of this day's chain, then to its end, counting parts
+    let start=S.days.indexOf(day);
+    while(start>0&&S.days[start].cont) start--;
+    let end=start, parts=1;
+    while(end+1<S.days.length&&S.days[end+1].cont){end++;parts++;}
+    S.days.splice(end+1,0,{id:uid(),label:base+" pt "+(parts+1),park:"",items:[],cont:true});
     save();renderDays();
     return;
   }
@@ -1887,6 +1897,7 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
         :S.lists;
     }
     delete S.todos;
+    (S.days||[]).forEach(d=>{ if(d.cont===undefined&&/ pt \d+$/.test(d.label||"")) d.cont=true; });
   }
   }catch(e){ console.warn("Saved data couldn't be read — starting fresh.",e); }
   renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();
