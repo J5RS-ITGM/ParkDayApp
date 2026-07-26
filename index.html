@@ -69,6 +69,13 @@ header h1 input{
 }
 #installTip{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
 #installTip.open{display:flex}
+#alertsModal{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
+#alertsModal.open{display:flex}
+#alertsBtn{flex:0 0 auto;border:none;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;border-radius:99px;width:34px;height:34px;font-size:1rem;line-height:1}
+.alertRow{display:flex;align-items:center;gap:8px;background:#f6f8fd;border-radius:10px;padding:9px 10px;margin-bottom:6px;text-align:left;cursor:pointer}
+.alertRow b{flex:1;font-size:.88rem}
+.alertRow .th{font-size:.75rem;font-weight:800;color:#4a3300;background:var(--gold);border-radius:99px;padding:2px 8px;white-space:nowrap}
+.alertRow .rm{border:none;background:none;color:var(--coral);font-weight:800;cursor:pointer;font-size:.85rem;padding:4px}
 .tipBox{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);max-width:340px;width:100%;padding:20px;text-align:center}
 .tipBox h3{font-family:'Fredoka';font-weight:600;font-size:1.15rem;margin-bottom:8px}
 .tipBox p{font-size:.9rem;line-height:1.55;color:#5a5f80;margin-bottom:14px}
@@ -300,6 +307,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <div class="hwrap">
     <div class="hrow">
       <h1><input id="tripName" value="Our Disney Trip" aria-label="Trip name"></h1>
+      <button id="alertsBtn" title="My ride alerts" aria-label="My ride alerts">🔔</button>
       <span class="saveState" id="saveState">saved</span>
     </div>
     <div class="countdown">
@@ -315,6 +323,15 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
     <h3>Install Park Day 🏰</h3>
     <p id="tipSteps"></p>
     <button class="btn gold" id="tipClose">Got it</button>
+  </div>
+</div>
+
+<div id="alertsModal" role="dialog" aria-label="My ride alerts">
+  <div class="tipBox">
+    <h3>🔔 My ride alerts</h3>
+    <p class="hint" style="margin-bottom:10px">Alerts buzz this phone when a ride's wait drops below your number — max one per ride per hour. Tap a row to change the minutes.</p>
+    <div id="alertsList"></div>
+    <button class="btn gold" id="alertsClose" style="margin-top:12px">Close</button>
   </div>
 </div>
 
@@ -370,7 +387,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.0</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.1</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -737,19 +754,38 @@ function renderAll(){renderHeader();renderKids();renderRides();renderFood();rend
    a notification when it drops below. One alert per hour max.
    ============================================================ */
 let pushCfg=null, pushSub=null, watched={};   // ride name -> threshold
+const WATCH_KEY="park-day-watches-v1";
+function cacheWatches(){
+  try{ localStorage.setItem(WATCH_KEY, JSON.stringify({endpoint:pushSub?pushSub.endpoint:null, watched})); }catch(e){}
+}
+function loadCachedWatches(){
+  try{ const c=JSON.parse(localStorage.getItem(WATCH_KEY)||"null"); if(c&&c.watched){watched=c.watched; return c.endpoint;} }catch(e){}
+  return null;
+}
 function pushCapable(){
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 async function initPush(){
   if(!pushCapable()) return;
+  const cachedEndpoint=loadCachedWatches();        // instant restore: bells stay gold across refreshes
+  if(Object.keys(watched).length) renderRides();
   try{
     const r=await apiFetch("GET",null,"push/config");
     if(!r.ok) return;
     pushCfg=await r.json();
     if(!pushCfg.enabled) return;
+    renderRides();                                  // bells now visible even before sub resolves
     const reg=await navigator.serviceWorker.ready;
     pushSub=await reg.pushManager.getSubscription();
-    if(pushSub) await loadWatches();
+    if(pushSub){
+      if(cachedEndpoint && cachedEndpoint!==pushSub.endpoint){
+        // endpoint rotated (reinstall/resubscribe) — re-register cached watches
+        for(const [ride,th] of Object.entries(watched)){
+          try{ await apiFetch("POST",{endpoint:pushSub.endpoint,ride,threshold:th},"push/watch"); }catch(e){}
+        }
+      }
+      await loadWatches();
+    }
     renderRides();
   }catch(e){}
 }
@@ -760,6 +796,7 @@ async function loadWatches(){
     if(!r.ok) return;
     const j=await r.json();
     watched={}; (j.watches||[]).forEach(w=>watched[w.ride]=w.threshold);
+    cacheWatches();
   }catch(e){}
 }
 function urlB64ToU8(s){
@@ -780,12 +817,16 @@ async function ensureSubscribed(){
   await apiFetch("POST",{subscription:pushSub.toJSON(),label:S.tripName||""},"push/subscribe");
   return true;
 }
+async function setWatch(rideName, th){
+  await apiFetch("POST",{endpoint:pushSub.endpoint,ride:rideName,threshold:th},"push/watch");
+  watched[rideName]=th; cacheWatches();
+}
 async function toggleWatch(rideName){
   if(!pushCfg||!pushCfg.enabled) return;
   try{
     if(watched[rideName]!==undefined){
-      await apiFetch("POST",{endpoint:pushSub.endpoint,ride:rideName},"push/unwatch");
-      delete watched[rideName];
+      await apiFetch("POST",{endpoint:pushSub?pushSub.endpoint:"",ride:rideName},"push/unwatch");
+      delete watched[rideName]; cacheWatches();
       renderRides();
       return;
     }
@@ -794,10 +835,21 @@ async function toggleWatch(rideName){
     if(raw===null) return;
     const th=parseInt(raw,10);
     if(!th||th<5||th>240){alert("Pick a number of minutes between 5 and 240.");return;}
-    await apiFetch("POST",{endpoint:pushSub.endpoint,ride:rideName,threshold:th},"push/watch");
-    watched[rideName]=th;
+    await setWatch(rideName, th);
     renderRides();
   }catch(e){ alert("Couldn't update the alert — check your connection and try again."); }
+}
+function renderAlertsPanel(){
+  const el=document.getElementById("alertsList");
+  const names=Object.keys(watched);
+  el.innerHTML=names.length
+    ? names.map(n=>`<div class="alertRow" data-alertrow="${esc(n)}"><b>${esc(n)}</b><span class="th">&lt;${watched[n]}m</span><button class="rm" data-alertrm="${esc(n)}">✕</button></div>`).join("")
+    : `<div class="empty" style="padding:14px 4px">No alerts on this phone yet.<br>Tap 🔕 Alert on any ride card to add one.</div>`;
+}
+async function openAlerts(){
+  if(pushSub) await loadWatches();      // freshen from server when we can
+  renderAlertsPanel();
+  document.getElementById("alertsModal").classList.add("open");
 }
 
 /* ============================================================
@@ -1270,6 +1322,16 @@ document.body.addEventListener("click",e=>{
   const t=e.target;
   const bell=t.closest("[data-bell]");
   if(bell){toggleWatch(bell.dataset.bell);return;}
+  if(t.id==="alertsBtn"){openAlerts();return;}
+  if(t.id==="alertsClose"||t.id==="alertsModal"){document.getElementById("alertsModal").classList.remove("open");return;}
+  if(t.dataset.alertrm){toggleWatch(t.dataset.alertrm).then(renderAlertsPanel);return;}
+  const arow=t.closest("[data-alertrow]");
+  if(arow){
+    const n=arow.dataset.alertrow;
+    const raw=prompt(`Alert when "${n}" drops below how many minutes?`, watched[n]||40);
+    if(raw!==null){const th=parseInt(raw,10); if(th&&th>=5&&th<=240){setWatch(n,th).then(()=>{renderAlertsPanel();renderRides();}).catch(()=>alert("Couldn't update — try again."));}}
+    return;
+  }
   // family chips / delete
   const kidCard=t.closest("[data-kid]");
   if(kidCard){
