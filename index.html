@@ -81,6 +81,11 @@ header h1 input{
 .listHead .mv button{border:none;background:#eef1f9;color:#5a5f80;border-radius:6px;width:24px;height:22px;font-size:.6rem;cursor:pointer;line-height:1}
 .todo .iEdit,.todo .iUp{border:none;background:none;color:#c3c8de;cursor:pointer;font-size:.78rem;padding:4px 2px;flex:0 0 auto}
 .todo .iEdit:hover,.todo .iUp:hover{color:var(--night)}
+#foodModal,#editItemModal{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
+#foodModal.open,#editItemModal.open{display:flex}
+#foodModal .tipBox input,#foodModal .tipBox select,#foodModal .tipBox textarea{margin-bottom:2px}
+.locChip{font-size:.72rem;font-weight:800;color:#5a5f80;background:#eef1f9;border-radius:8px;padding:3px 8px}
+.customTag{font-size:.6rem;font-weight:800;color:#7b5ea7;background:#f0ebfa;border-radius:6px;padding:3px 7px}
 #alertsModal{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
 #alertsModal.open{display:flex}
 #alertsBtn{flex:0 0 auto;border:none;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;border-radius:99px;width:34px;height:34px;font-size:1rem;line-height:1}
@@ -231,8 +236,8 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .todo .txt{flex:1;font-weight:700;font-size:.95rem}
 .todo.done .txt{text-decoration:line-through;color:#a7abc4}
 .todo .del{border:none;background:none;color:#c3c8de;cursor:pointer;font-size:1rem;min-width:36px;min-height:36px}
-.addRow{display:flex;gap:8px;margin-top:10px}
-.addRow input{flex:1}
+.addRow{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
+.addRow textarea{flex:1;resize:none;overflow:hidden;min-height:44px;line-height:1.4}
 
 .planItem .expandGate{padding:8px 0 2px 20px}
 .piCtl input[type=time]{width:auto;padding:4px 5px;font-size:.76rem;border-radius:8px;border:1.5px solid #dde3f0;font-family:'Nunito';font-weight:700;color:var(--night);margin-right:2px}
@@ -358,6 +363,37 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   </div>
 </div>
 
+<div id="foodModal" role="dialog" aria-label="Add a food spot">
+  <div class="tipBox" style="text-align:left">
+    <h3 id="foodModalTitle" style="text-align:center">🍦 Add a food spot</h3>
+    <label class="f">Name</label>
+    <input type="text" id="cfName" placeholder="e.g. Cheshire Cafe dessert cart">
+    <label class="f">Park</label>
+    <select id="cfPark"></select>
+    <label class="f">Type</label>
+    <input type="text" id="cfType" placeholder="e.g. Dessert cart, Snack stand">
+    <label class="f">Approximate location</label>
+    <input type="text" id="cfLoc" placeholder="e.g. Fantasyland, near the Mad Tea Party">
+    <label class="f">Notes</label>
+    <textarea id="cfNotes" rows="2" placeholder="e.g. Cake cups! Cash-free, seasonal hours"></textarea>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn gold" id="cfSave" style="flex:1">Save</button>
+      <button class="btn ghost" id="cfCancel" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="editItemModal" role="dialog" aria-label="Edit list item">
+  <div class="tipBox" style="text-align:left">
+    <h3 style="text-align:center">✎ Edit item</h3>
+    <textarea id="eiText" rows="3"></textarea>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn gold" id="eiSave" style="flex:1">Save</button>
+      <button class="btn ghost" id="eiCancel" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="alertsModal" role="dialog" aria-label="My ride alerts">
   <div class="tipBox">
     <h3>🔔 My ride alerts</h3>
@@ -390,7 +426,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
 
   <!-- ============ FOOD ============ -->
   <section class="tab" id="tab-food">
-    <div class="tabTitle">Food &amp; dining</div>
+    <div class="tabTitle">Food &amp; dining <button class="btn gold small" id="addFoodBtn">+ Add spot</button></div>
     <input type="search" id="foodSearch" placeholder="🔍 Search food… (e.g. Dole Whip, pizza, snack)" style="margin-bottom:8px">
     <div class="pills" id="foodPills"></div>
     <div class="notice">Every table-service and most quick-service Disney locations publish allergen-friendly menus — ask for a chef or use the allergy filter in Mobile Order. Flags below are based on your family's allergies from the Family tab.</div>
@@ -419,7 +455,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.3</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.4</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -667,13 +703,14 @@ let S={
     {id:"l-plan",title:"Before you go",items:DEFAULT_PLAN_TODOS.map(t=>({t,done:false}))},
     {id:"l-pack",title:"Packing",items:DEFAULT_PACK_TODOS.map(t=>({t,done:false}))}
   ],
+  customFood:[],           // family-added spots: {id,park,name,type,loc,notes,flags:null,custom:true}
   waits:{},                // rideName(lower) -> minutes
   extraRides:[],           // synced from ThemeParks.wiki, ht:-1 = verify in park
   extraFood:[],            // synced restaurants, flags:null = no allergen data
   lastSync:""
 };
 const allRides=()=>RIDES.concat(S.extraRides||[]);
-const allFood=()=>FOOD.concat(S.extraFood||[]);
+const allFood=()=>FOOD.concat(S.extraFood||[]).concat(S.customFood||[]);
 const uid=()=>Math.random().toString(36).slice(2,9);
 
 /* ============================================================
@@ -682,7 +719,7 @@ const uid=()=>Math.random().toString(36).slice(2,9);
    entity. Deletions leave tombstones so they don't resurrect.
    ============================================================ */
 const API_URL="api/state";
-const COLLS=["kids","days","lists"];
+const COLLS=["kids","days","lists","customFood"];
 let snap=null, srvRev=null, pushTimer=null, pushing=false, syncOK=false;
 
 function authKey(){ try{const v=localStorage.getItem(GATE_KEY); if(v) return v;}catch(e){} return GATE_HASH; }
@@ -871,6 +908,55 @@ async function toggleWatch(rideName){
     renderRides();
   }catch(e){ alert("Couldn't update the alert — check your connection and try again."); }
 }
+let editingFoodId=null;
+function openFoodModal(f){
+  editingFoodId=f?f.id:null;
+  document.getElementById("foodModalTitle").textContent=f?"✎ Edit food spot":"🍦 Add a food spot";
+  document.getElementById("cfPark").innerHTML=Object.entries(PARKS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
+  document.getElementById("cfName").value=f?f.name:"";
+  document.getElementById("cfPark").value=f?f.park:(foodFilter!=="all"?foodFilter:"MK");
+  document.getElementById("cfType").value=f?f.type:"";
+  document.getElementById("cfLoc").value=f?(f.loc||""):"";
+  document.getElementById("cfNotes").value=f?(f.notes||""):"";
+  document.getElementById("foodModal").classList.add("open");
+  setTimeout(()=>document.getElementById("cfName").focus(),100);
+}
+function saveFoodModal(){
+  const name=document.getElementById("cfName").value.trim();
+  if(!name){alert("Give the spot a name.");return;}
+  const data={
+    park:document.getElementById("cfPark").value,
+    name,
+    type:document.getElementById("cfType").value.trim()||"Snack",
+    loc:document.getElementById("cfLoc").value.trim(),
+    notes:document.getElementById("cfNotes").value.trim(),
+    flags:null, custom:true
+  };
+  if(editingFoodId){
+    const f=S.customFood.find(x=>x.id===editingFoodId);
+    if(f) Object.assign(f,data);
+  }else{
+    S.customFood.push({id:"cf-"+uid(),...data});
+  }
+  document.getElementById("foodModal").classList.remove("open");
+  editingFoodId=null;
+  save();renderFood();renderDays();
+}
+let editItemCtx=null;   // {listId, idx}
+function openEditItem(L,idx){
+  editItemCtx={listId:L.id,idx};
+  document.getElementById("eiText").value=L.items[idx].t;
+  document.getElementById("editItemModal").classList.add("open");
+  setTimeout(()=>document.getElementById("eiText").focus(),100);
+}
+function saveEditItem(){
+  if(!editItemCtx) return;
+  const L=S.lists.find(x=>x.id===editItemCtx.listId);
+  const txt=document.getElementById("eiText").value.trim();
+  if(L&&L.items[editItemCtx.idx]&&txt){L.items[editItemCtx.idx].t=txt;save();renderLists();renderDays();}
+  document.getElementById("editItemModal").classList.remove("open");
+  editItemCtx=null;
+}
 function renderAlertsPanel(){
   const el=document.getElementById("alertsList");
   const names=Object.keys(watched);
@@ -1036,21 +1122,21 @@ function renderFood(){
   pillbar("foodPills",foodFilter,p=>{foodFilter=p;renderFood();});
   const fam=familyAllergens();
   const q=norm(document.getElementById("foodSearch")?.value||"");
-  const list=allFood().filter(f=>(foodFilter==="all"||f.park===foodFilter)&&(!q||norm(f.name).includes(q)||norm(f.type).includes(q)||norm(f.notes).includes(q)));
+  const list=allFood().filter(f=>(foodFilter==="all"||f.park===foodFilter)&&(!q||norm(f.name).includes(q)||norm(f.type).includes(q)||norm(f.notes).includes(q)||norm(f.loc||"").includes(q)));
   document.getElementById("foodList").innerHTML=list.map(f=>{
     const noData=f.flags===null||f.flags===undefined;
     const hits=noData?[]:f.flags.filter(a=>fam.includes(a));
     return `
    <div class="card ride">
      <div class="top"><h3>${esc(f.name)}</h3><span class="parkTag t-${f.park}">${PARKS[f.park].short}</span></div>
-     <div class="meta"><span>${esc(f.type)}</span></div>
-     ${f.notes?`<div class="hint">${esc(f.notes)}</div>`:""}
+     <div class="meta"><span>${esc(f.type)}</span>${f.loc?`<span class="locChip">📍 ${esc(f.loc)}</span>`:""}${f.custom?`<span class="customTag">family add</span>`:""}</div>
+     ${f.notes?`<div class="hint">${esc(f.notes).replace(/\n/g,"<br>")}</div>`:""}
      ${noData
         ?`<div><span class="allergyFlag" style="background:#fff4d6;color:#8a6400">ⓘ No allergen data — use Mobile Order's allergy filter or ask a chef</span></div>`
         :fam.length?(hits.length
         ?`<div>${hits.map(a=>`<span class="allergyFlag">⚠ contains ${a} items — ask a chef</span>`).join(" ")}</div>`
         :`<div><span class="allergyFlag allergyOk">✓ No flagged allergens for your family</span></div>`):""}
-     <div class="rideActions"><button class="btn ghost small" data-addplan="food:${f.id}">+ Add to a day</button><button class="btn ghost small" data-addtodo="${f.id}">☑ Add to list</button></div>
+     <div class="rideActions"><button class="btn ghost small" data-addplan="food:${f.id}">+ Add to a day</button><button class="btn ghost small" data-addtodo="${f.id}">☑ Add to list</button>${f.custom?`<button class="btn ghost small" data-editfood="${f.id}">✎</button><button class="btn danger small" data-delfood="${f.id}">✕</button>`:""}</div>
    </div>`;}).join("")||`<div class="empty">No spots match — try another word or tap ⇩ Sync all in the Rides tab to pull every open location.</div>`;
 }
 
@@ -1198,13 +1284,13 @@ function renderLists(){
         <div>${L.items.map((t,i)=>`
           <div class="todo ${t.done?"done":""}">
             <input type="checkbox" ${t.done?"checked":""} data-todo="${i}" aria-label="${esc(t.t)}">
-            <span class="txt">${esc(t.t)}${(()=>{const f=t.foodId?allFood().find(x=>x.id===t.foodId):null;
+            <span class="txt">${esc(t.t).replace(/\n/g,"<br>")}${(()=>{const f=t.foodId?allFood().find(x=>x.id===t.foodId):null;
               return f?`<br><span class="parkTag t-${f.park}" style="font-size:.6rem">${PARKS[f.park].short}</span> <span class="sub" style="font-size:.72rem;color:#8b90ad;font-weight:700">${esc(f.name)}${f.type&&f.type!=="Synced"?" · "+esc(f.type):""}</span>`:"";})()}</span>
             <button class="iEdit" data-edittodo="${i}" aria-label="Edit item">✎</button>
             ${i>0?`<button class="iUp" data-movetodo="${i}" aria-label="Move item up">▲</button>`:`<span class="iUp" style="visibility:hidden">▲</span>`}
             <button class="del" data-deltodo="${i}" aria-label="Delete">✕</button>
           </div>`).join("")||'<div class="hint" style="padding:8px 0">Empty — add the first item below.</div>'}</div>
-        <div class="addRow"><input type="text" data-newitem value="${esc(draftText[L.id]||"")}" placeholder="Add an item…"><button class="btn small" data-additem>Add</button></div>
+        <div class="addRow"><textarea rows="1" data-newitem placeholder="Add an item… (Shift+Enter for a new line)">${esc(draftText[L.id]||"")}</textarea><button class="btn small" data-additem>Add</button></div>
         ${(()=>{const c=linkedFood[L.id]?allFood().find(x=>x.id===linkedFood[L.id]):null;
           return c?`<div class="linkedChip"><span class="parkTag t-${c.park}" style="font-size:.6rem">${PARKS[c.park].short}</span>${esc(c.name)}<button class="clr" data-clearlink aria-label="Remove link">✕</button></div>
             <div class="hint" style="margin-top:4px">Linked — it'll attach to the next item you add.</div>`
@@ -1399,6 +1485,19 @@ document.body.addEventListener("click",e=>{
   const bell=t.closest("[data-bell]");
   if(bell){toggleWatch(bell.dataset.bell);return;}
   if(t.id==="alertsBtn"){openAlerts();return;}
+  if(t.id==="addFoodBtn"){openFoodModal(null);return;}
+  if(t.id==="cfSave"){saveFoodModal();return;}
+  if(t.id==="cfCancel"||t.id==="foodModal"){document.getElementById("foodModal").classList.remove("open");editingFoodId=null;return;}
+  if(t.id==="eiSave"){saveEditItem();return;}
+  if(t.id==="eiCancel"||t.id==="editItemModal"){document.getElementById("editItemModal").classList.remove("open");editItemCtx=null;return;}
+  if(t.dataset.editfood){const f=S.customFood.find(x=>x.id===t.dataset.editfood);if(f)openFoodModal(f);return;}
+  if(t.dataset.delfood){
+    if(confirm("Remove this spot for everyone? (Deletes for all families.)")){
+      S.customFood=S.customFood.filter(x=>x.id!==t.dataset.delfood);
+      save();renderFood();renderDays();
+    }
+    return;
+  }
   if(t.id==="dayPickCancel"||t.id==="dayPickModal"){document.getElementById("dayPickModal").classList.remove("open");dayPickCb=null;return;}
   const dpick=t.closest("[data-pickday]");
   if(dpick){
@@ -1482,9 +1581,7 @@ document.body.addEventListener("click",e=>{
       return;
     }
     if(t.dataset.edittodo!==undefined&&t.dataset.edittodo!==""){
-      const it=L.items[+t.dataset.edittodo];
-      const txt=prompt("Edit item:", it.t);
-      if(txt!==null&&txt.trim()){it.t=txt.trim();save();renderLists();renderDays();}
+      openEditItem(L,+t.dataset.edittodo);
       return;
     }
     if(t.dataset.movetodo!==undefined&&t.dataset.movetodo!==""){
@@ -1533,9 +1630,14 @@ document.body.addEventListener("change",e=>{
   }
 });
 document.body.addEventListener("keydown",e=>{
-  if(e.key==="Enter"&&e.target.matches("[data-newitem],[data-noteinput]")){
+  if(e.key==="Enter"&&!e.shiftKey&&e.target.matches("[data-newitem],[data-noteinput]")){
+    e.preventDefault();
     const btn=e.target.parentElement.querySelector("button");btn&&btn.click();
   }
+});
+// auto-grow the multi-line add box
+document.body.addEventListener("input",e=>{
+  if(e.target.matches("textarea[data-newitem]")){e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}
 });
 
 /* ============================================================
