@@ -483,7 +483,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.7</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.8</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -1342,7 +1342,7 @@ function renderDays(){
      </h3>
      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
        ${d.park?`<button class="btn ghost small" data-daymap="${d.id}">🗺 Map</button>`:""}
-       ${d.items.filter(x=>x.kind!=="note").length>1?`<button class="btn ghost small" data-splitday="${d.id}">✂ Split day</button>`:""}
+       <button class="btn ghost small" data-splitday="${d.id}">✂ Split day</button>
        <span class="mv" style="margin-left:auto;display:flex;gap:2px">
          <button class="dayMv" data-moveday="up:${d.id}" aria-label="Move day earlier">▲</button>
          <button class="dayMv" data-moveday="down:${d.id}" aria-label="Move day later">▼</button>
@@ -1671,21 +1671,8 @@ document.body.addEventListener("click",e=>{
   }
   if(t.dataset.splitday){
     const day=S.days.find(x=>x.id===t.dataset.splitday); if(!day) return;
-    const stops=day.items.filter(x=>x.kind!=="note").length;
-    const raw=prompt(`Split "${day.label}" after which stop?\n(Stops 1–${stops}; everything after moves to the new day.)`, Math.ceil(stops/2));
-    if(raw===null) return;
-    const at=parseInt(raw,10);
-    if(!at||at<1||at>stops-1){alert("Pick a stop number between 1 and "+(stops-1)+".");return;}
-    // find array index where stop count passes `at`
-    let seen=0, cut=day.items.length;
-    for(let ii=0;ii<day.items.length;ii++){
-      if(day.items[ii].kind!=="note") seen++;
-      if(seen===at){cut=ii+1;break;}
-    }
-    const tail=day.items.slice(cut);
-    day.items=day.items.slice(0,cut);
     const idx=S.days.indexOf(day);
-    S.days.splice(idx+1,0,{id:uid(),label:day.label+" pt 2",park:day.park,items:tail});
+    S.days.splice(idx+1,0,{id:uid(),label:day.label+" pt 2",park:"",items:[]});
     save();renderDays();
     return;
   }
