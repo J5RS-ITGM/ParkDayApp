@@ -252,7 +252,7 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .todo.done .txt{text-decoration:line-through;color:#a7abc4}
 .todo .del{border:none;background:none;color:#c3c8de;cursor:pointer;font-size:1rem;min-width:36px;min-height:36px}
 .addRow{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
-.addRow textarea{flex:1;resize:none;overflow:hidden;min-height:44px;line-height:1.4}
+.addRow textarea{flex:1;resize:none;overflow:hidden;min-height:64px;line-height:1.4}
 
 .planItem .expandGate{padding:8px 0 2px 20px}
 .piCtl input[type=time]{width:auto;padding:4px 5px;font-size:.76rem;border-radius:8px;border:1.5px solid #dde3f0;font-family:'Nunito';font-weight:700;color:var(--night);margin-right:2px}
@@ -483,7 +483,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.9</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v6.0</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -1468,7 +1468,7 @@ function renderLists(){
             ${i>0?`<button class="iUp" data-movetodo="${i}" aria-label="Move item up">▲</button>`:`<span class="iUp" style="visibility:hidden">▲</span>`}
             <button class="del" data-deltodo="${i}" aria-label="Delete">✕</button>
           </div>`).join("")||'<div class="hint" style="padding:8px 0">Empty — add the first item below.</div>'}</div>
-        <div class="addRow"><textarea rows="1" data-newitem placeholder="Add an item… (Enter for a new line, tap Add to save)">${esc(draftText[L.id]||"")}</textarea><button class="btn small" data-additem>Add</button></div>
+        <div class="addRow"><textarea rows="2" data-newitem placeholder="Add an item… (Enter = new line, tap Add to save)">${esc(draftText[L.id]||"")}</textarea><button class="btn small" data-additem>Add</button></div>
         ${(()=>{const c=linkedFood[L.id]?allFood().find(x=>x.id===linkedFood[L.id]):null;
           return c?`<div class="linkedChip"><span class="parkTag t-${c.park}" style="font-size:.6rem">${PARKS[c.park].short}</span>${esc(c.name)}<button class="clr" data-clearlink aria-label="Remove link">✕</button></div>
             <div class="hint" style="margin-top:4px">Linked — it'll attach to the next item you add.</div>`
