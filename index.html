@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#232a5c">
+<title>Park Day — Disney Trip Planner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Park Day">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#232a5c;      /* parade-sky navy */
+  --night-2:#2f3875;
+  --ink:#24263b;
+  --bg:#f2f6fa;         /* pale sky */
+  --card:#ffffff;
+  --gold:#ffb703;       /* castle gold */
+  --coral:#ef476f;      /* can't-ride / alerts */
+  --green:#2a9d5c;      /* can-ride */
+  --teal:#0aa6a0;
+  --mk:#e0a400; --ep:#7b5ea7; --hs:#e8703a; --ak:#4c8c3f;
+  --radius:16px;
+  --shadow:0 2px 10px rgba(35,42,92,.10);
+  --tap:48px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Nunito',system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  min-height:100vh;
+}
+h1,h2,h3,.display{font-family:'Fredoka',sans-serif}
+
+/* ---------- header ---------- */
+header{
+  background:linear-gradient(160deg,var(--night) 0%,var(--night-2) 70%);
+  color:#fff;padding:calc(14px + env(safe-area-inset-top)) 18px 16px;
+  border-radius:0 0 22px 22px;
+  position:relative;overflow:hidden;
+}
+header .stars{position:absolute;inset:0;pointer-events:none;opacity:.7}
+header .stars i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.5}
+header h1{font-size:1.35rem;font-weight:600;letter-spacing:.3px;position:relative}
+header h1 input{
+  font:inherit;color:inherit;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.35);
+  width:100%;max-width:320px;padding:2px 0;outline:none;
+}
+.countdown{position:relative;margin-top:6px;font-size:.9rem;color:#cdd4ff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.countdown b{color:var(--gold);font-family:'Fredoka';font-weight:600;font-size:1.05rem}
+.countdown input[type=date]{
+  background:rgba(255,255,255,.12);border:none;border-radius:8px;color:#fff;
+  padding:4px 8px;font-family:inherit;font-size:.85rem;
+}
+.saveState{position:absolute;top:calc(12px + env(safe-area-inset-top));right:14px;font-size:.7rem;color:#aab4ee;background:rgba(255,255,255,.1);padding:3px 8px;border-radius:99px}
+
+/* ---------- tabs ---------- */
+nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  background:#fff;border-top:1px solid #e3e8f2;
+  display:flex;justify-content:space-around;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+nav button{
+  flex:1;min-height:var(--tap);border:none;background:none;cursor:pointer;
+  font-family:'Nunito';font-size:.68rem;font-weight:700;color:#8b90ad;
+  display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:12px;
+}
+nav button .ico{font-size:1.25rem;line-height:1}
+nav button.active{color:var(--night)}
+nav button.active .ico{transform:translateY(-1px)}
+nav button:focus-visible{outline:2px solid var(--night);outline-offset:-2px}
+
+/* ---------- layout ---------- */
+main{padding:16px 14px 24px;max-width:720px;margin:0 auto}
+section.tab{display:none}
+section.tab.active{display:block;animation:fadein .18s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){section.tab.active{animation:none}}
+.tabTitle{font-size:1.15rem;font-weight:600;margin:4px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.muted{color:#7c81a1}
+.hint{font-size:.8rem;color:#8b90ad;line-height:1.45}
+.btn{
+  font-family:'Fredoka';font-weight:500;font-size:.95rem;border:none;cursor:pointer;
+  background:var(--night);color:#fff;border-radius:12px;padding:10px 16px;min-height:44px;
+}
+.btn.gold{background:var(--gold);color:#4a3300}
+.btn.ghost{background:#eef1f9;color:var(--night)}
+.btn.small{min-height:36px;padding:6px 12px;font-size:.85rem}
+.btn.danger{background:#fde8ee;color:var(--coral)}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input[type=search]{font-family:'Nunito';font-size:.95rem;border:1.5px solid #dde3f0;border-radius:12px;padding:10px 14px;width:100%;background:#fff;color:var(--ink);-webkit-appearance:none}
+input[type=search]:focus{outline:none;border-color:var(--night)}
+input[type=text],input[type=number],select,textarea{
+  font-family:'Nunito';font-size:1rem;border:1.5px solid #dde3f0;border-radius:10px;
+  padding:10px 12px;width:100%;background:#fff;color:var(--ink);
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--night)}
+label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+
+/* ---------- park pills / filters ---------- */
+.pills{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;-webkit-overflow-scrolling:touch}
+.pills::-webkit-scrollbar{display:none}
+.pill{
+  flex:0 0 auto;border:none;cursor:pointer;font-family:'Fredoka';font-weight:500;
+  font-size:.85rem;padding:8px 14px;border-radius:99px;background:#e7ebf5;color:#5a5f80;min-height:38px;
+}
+.pill.active{color:#fff}
+.pill.p-all.active{background:var(--night)}
+.pill.p-MK.active{background:var(--mk)} .pill.p-EP.active{background:var(--ep)}
+.pill.p-HS.active{background:var(--hs)} .pill.p-AK.active{background:var(--ak)}
+
+/* ---------- ride cards ---------- */
+.ride{display:flex;flex-direction:column;gap:8px}
+.ride .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ride h3{font-size:1rem;font-weight:600;line-height:1.25}
+.parkTag{font-size:.65rem;font-weight:800;letter-spacing:.5px;padding:3px 8px;border-radius:6px;color:#fff;white-space:nowrap}
+.t-MK{background:var(--mk)} .t-EP{background:var(--ep)} .t-HS{background:var(--hs)} .t-AK{background:var(--ak)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;font-size:.75rem;font-weight:700;color:#5a5f80}
+.meta span{background:#eef1f9;border-radius:6px;padding:3px 8px}
+.meta .wait{background:#fff4d6;color:#8a6400}
+.meta .htReq{background:#e9e4f5;color:#5a4390}
+
+/* signature: the height gate — who in the family clears the bar */
+.gate{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.gate .kid{
+  display:flex;align-items:center;gap:5px;font-size:.78rem;font-weight:800;
+  border-radius:99px;padding:4px 10px 4px 4px;
+}
+.gate .kid .av{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:'Fredoka';font-size:.7rem}
+.gate .ok{background:#e2f5ea;color:var(--green)} .gate .ok .av{background:var(--green)}
+.gate .no{background:#fde8ee;color:var(--coral)} .gate .no .av{background:var(--coral)}
+.gate .short{font-size:.68rem;font-weight:800}
+.rideActions{display:flex;gap:8px}
+
+/* ---------- food ---------- */
+.allergyFlag{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:800;border-radius:6px;padding:3px 8px;background:#fde8ee;color:var(--coral)}
+.allergyOk{background:#e2f5ea;color:var(--green)}
+
+/* ---------- family ---------- */
+.kidCard{display:flex;gap:12px;align-items:flex-start}
+.kidCard .bigAv{width:46px;height:46px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-family:'Fredoka';font-size:1.2rem;flex:0 0 auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{font-size:.75rem;font-weight:800;background:#eef1f9;color:#5a5f80;border-radius:99px;padding:4px 10px;border:1.5px solid transparent;cursor:pointer}
+.chip.on{background:#fde8ee;color:var(--coral);border-color:#f7b8c9}
+
+/* ---------- plan / days ---------- */
+.dayCard h3{display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:600}
+.planItem{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed #e3e8f2}
+.planItem:last-child{border-bottom:none}
+.planItem .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.planItem .nm{flex:1;font-size:.92rem;font-weight:700}
+.planItem .sub{font-size:.72rem;color:#8b90ad;font-weight:700}
+.planItem button{border:none;background:none;color:#b8bdd6;font-size:1rem;cursor:pointer;min-width:36px;min-height:36px}
+
+/* ---------- checklist ---------- */
+.todo{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed #e3e8f2}
+.todo:last-child{border-bottom:none}
+.todo input[type=checkbox]{width:22px;height:22px;accent-color:var(--green);flex:0 0 auto}
+.todo .txt{flex:1;font-weight:700;font-size:.95rem}
+.todo.done .txt{text-decoration:line-through;color:#a7abc4}
+.todo .del{border:none;background:none;color:#c3c8de;cursor:pointer;font-size:1rem;min-width:36px;min-height:36px}
+.addRow{display:flex;gap:8px;margin-top:10px}
+.addRow input{flex:1}
+
+.planItem{flex-wrap:wrap}
+.planItem .expandBtn{border:none;background:#eef1f9;color:var(--night);border-radius:8px;min-width:36px;min-height:36px;cursor:pointer;font-size:.8rem;font-weight:800}
+.planItem .expandGate{width:100%;padding:8px 0 4px 20px}
+.planItem input[type=time]{width:auto;padding:5px 6px;font-size:.8rem;border-radius:8px;border:1.5px solid #dde3f0;font-family:'Nunito';font-weight:700;color:var(--night)}
+.timeChip{font-size:.7rem;font-weight:800;background:#fff4d6;color:#8a6400;border-radius:6px;padding:2px 6px;margin-left:6px}
+.dayFilter{display:flex;gap:6px;margin:8px 0 2px}
+.dayFilter button{border:none;cursor:pointer;font-size:.72rem;font-weight:800;font-family:'Nunito';padding:5px 10px;border-radius:99px;background:#eef1f9;color:#5a5f80;min-height:32px}
+.dayFilter button.on{background:var(--night);color:#fff}
+.listCard{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.listHead{display:flex;align-items:center;gap:8px}
+.listHead input.title{border:none;border-bottom:1px dashed #dde3f0;border-radius:0;padding:2px 0;font-family:'Fredoka';font-weight:600;font-size:1.05rem;color:var(--ink);flex:1;background:transparent}
+.listHead .count{font-size:.72rem;font-weight:800;color:#8b90ad;white-space:nowrap}
+.listHead .fold{border:none;background:#eef1f9;color:var(--night);border-radius:8px;min-width:34px;min-height:34px;cursor:pointer;font-weight:800}
+.progress{height:6px;border-radius:99px;background:#eef1f9;margin:10px 0 4px;overflow:hidden}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:99px;transition:width .25s ease}
+.linkBox{position:relative;margin-top:6px}
+.foodResults{display:flex;flex-direction:column;border:1.5px solid #dde3f0;border-top:none;border-radius:0 0 12px 12px;overflow:hidden;background:#fff}
+.foodResults:empty{display:none}
+.foodResults button{border:none;background:#fff;cursor:pointer;text-align:left;padding:10px 12px;font-family:'Nunito';font-size:.85rem;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;border-bottom:1px solid #f0f2f8;min-height:40px}
+.foodResults button:last-child{border-bottom:none}
+.foodResults button:active{background:#eef1f9}
+.foodResults .sub2{font-size:.68rem;color:#8b90ad;font-weight:700}
+.linkedChip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:#eef1f9;border-radius:99px;padding:5px 6px 5px 10px;font-size:.8rem;font-weight:800;color:var(--night)}
+.linkedChip .clr{border:none;background:#dde3f0;color:#5a5f80;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.7rem;line-height:1}
+.linkBox input.linked{border-radius:12px}
+.listCard .del-list{border:none;background:none;color:#c3c8de;cursor:pointer;font-size:.75rem;font-weight:800;min-height:32px}
+.dayTry{background:#f6f8fd;border:1.5px dashed #dde3f0;border-radius:12px;padding:10px 12px;margin-top:10px}
+.dayTry h4{font-family:'Fredoka';font-weight:600;font-size:.85rem;color:var(--night);margin-bottom:4px}
+.dayTry .todo{padding:7px 0}
+.dayTry .from{font-size:.65rem;font-weight:800;color:#a7abc4;background:#eef1f9;border-radius:6px;padding:2px 6px;white-space:nowrap}
+.empty{padding:22px 8px;text-align:center;color:#8b90ad;font-weight:700;font-size:.9rem}
+.notice{font-size:.78rem;background:#fff8e6;border:1px solid #f5e2a8;color:#7a5d00;border-radius:10px;padding:8px 10px;margin-bottom:10px;line-height:1.4}
+footer.credit{max-width:720px;margin:8px auto 0;padding:0 16px;font-size:.7rem;color:#a0a5c2;text-align:center}
+footer.credit a{color:#7b82b8}
+</style>
+</head>
+<body>
+<header>
+  <div class="stars" id="stars"></div>
+  <span class="saveState" id="saveState">saved</span>
+  <span class="saveState" style="right:auto;left:14px;top:auto;bottom:8px;opacity:.7">v2.3 — castle icon</span>
+  <h1><input id="tripName" value="Our Disney Trip" aria-label="Trip name"></h1>
+  <div class="countdown">
+    <span id="cdText"><b id="cdDays">—</b> days to go</span>
+    <input type="date" id="tripDate" aria-label="Trip start date">
+  </div>
+</header>
+
+<main>
+  <!-- ============ PLAN ============ -->
+  <section class="tab active" id="tab-plan">
+    <div class="tabTitle">Park days <button class="btn gold small" id="addDay">+ Add day</button></div>
+    <div id="daysList"></div>
+    <div class="empty" id="daysEmpty">No park days yet. Add a day, pick a park, then send rides and restaurants here from the other tabs.</div>
+  </section>
+
+  <!-- ============ RIDES ============ -->
+  <section class="tab" id="tab-rides">
+    <div class="tabTitle">Rides &amp; attractions <span style="display:flex;gap:6px"><button class="btn ghost small" id="syncBtn">⇩ Sync all</button><button class="btn ghost small" id="liveBtn">↻ Live waits</button></span></div>
+    <input type="search" id="rideSearch" placeholder="🔍 Search rides… (e.g. coaster, Slinky, safari)" style="margin-bottom:8px">
+    <div class="pills" id="ridePills"></div>
+    <div class="hint" style="margin-bottom:10px">Green means the child meets the height requirement, red means not yet. Heights come from the Family tab.</div>
+    <div id="ridesList"></div>
+  </section>
+
+  <!-- ============ FOOD ============ -->
+  <section class="tab" id="tab-food">
+    <div class="tabTitle">Food &amp; dining</div>
+    <input type="search" id="foodSearch" placeholder="🔍 Search food… (e.g. Dole Whip, pizza, snack)" style="margin-bottom:8px">
+    <div class="pills" id="foodPills"></div>
+    <div class="notice">Every table-service and most quick-service Disney locations publish allergen-friendly menus — ask for a chef or use the allergy filter in Mobile Order. Flags below are based on your family's allergies from the Family tab.</div>
+    <div id="foodList"></div>
+  </section>
+
+  <!-- ============ FAMILY ============ -->
+  <section class="tab" id="tab-family">
+    <div class="tabTitle">Family <button class="btn gold small" id="addKid">+ Add person</button></div>
+    <div class="hint" style="margin-bottom:10px">Add each child's height in inches — ride cards will show who can ride. Tap allergens to toggle them; dining cards will warn you.</div>
+    <div id="kidsList"></div>
+    <div class="empty" id="kidsEmpty">No family members yet.</div>
+  </section>
+
+  <!-- ============ LISTS ============ -->
+  <section class="tab" id="tab-lists">
+    <div class="tabTitle">Lists <button class="btn gold small" id="addList">+ New list</button></div>
+    <div id="listsWrap"></div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="plan" class="active"><span class="ico">🗓️</span>Plan</button>
+  <button data-tab="rides"><span class="ico">🎢</span>Rides</button>
+  <button data-tab="food"><span class="ico">🍽️</span>Food</button>
+  <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
+  <button data-tab="lists"><span class="ico">✅</span>Lists</button>
+</nav>
+<footer class="credit">Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<script>
+/* ============================================================
+   DATA — Walt Disney World rides (height reqs in inches) & dining
+   ============================================================ */
+const PARKS = {MK:{name:"Magic Kingdom",short:"MK"},EP:{name:"EPCOT",short:"EPCOT"},HS:{name:"Hollywood Studios",short:"HS"},AK:{name:"Animal Kingdom",short:"AK"}};
+const TPW_IDS = { // ThemeParks.wiki entity IDs for live data
+  MK:"75ea578a-adc8-4116-a54d-dccb60765ef9",
+  EP:"47f90d2c-e191-4239-a466-5892ef59a88b",
+  HS:"288747d1-8b4f-4a64-867e-ea7c9b27bad8",
+  AK:"1c84a229-8862-4648-9c71-378ddd2c7693"
+};
+const RIDES = [
+ // Magic Kingdom
+ {id:"mk-7d",park:"MK",name:"Seven Dwarfs Mine Train",ht:38,tag:"Coaster · family"},
+ {id:"mk-sm",park:"MK",name:"Space Mountain",ht:44,tag:"Coaster · dark"},
+ {id:"mk-btm",park:"MK",name:"Big Thunder Mountain Railroad",ht:40,tag:"Coaster"},
+ {id:"mk-tron",park:"MK",name:"TRON Lightcycle / Run",ht:48,tag:"Coaster · intense"},
+ {id:"mk-tiana",park:"MK",name:"Tiana's Bayou Adventure",ht:40,tag:"Flume · big drop"},
+ {id:"mk-barn",park:"MK",name:"The Barnstormer",ht:35,tag:"Kid coaster"},
+ {id:"mk-speed",park:"MK",name:"Tomorrowland Speedway",ht:32,tag:"32\" to ride · 54\" to drive"},
+ {id:"mk-hm",park:"MK",name:"Haunted Mansion",ht:0,tag:"Dark ride · spooky"},
+ {id:"mk-potc",park:"MK",name:"Pirates of the Caribbean",ht:0,tag:"Boat · small drop"},
+ {id:"mk-jc",park:"MK",name:"Jungle Cruise",ht:0,tag:"Boat · jokes"},
+ {id:"mk-pp",park:"MK",name:"Peter Pan's Flight",ht:0,tag:"Dark ride"},
+ {id:"mk-pooh",park:"MK",name:"The Many Adventures of Winnie the Pooh",ht:0,tag:"Dark ride"},
+ {id:"mk-buzz",park:"MK",name:"Buzz Lightyear's Space Ranger Spin",ht:0,tag:"Shooter"},
+ {id:"mk-dumbo",park:"MK",name:"Dumbo the Flying Elephant",ht:0,tag:"Spinner"},
+ {id:"mk-small",park:"MK",name:"\"it's a small world\"",ht:0,tag:"Boat"},
+ {id:"mk-tea",park:"MK",name:"Mad Tea Party",ht:0,tag:"Spinner"},
+ {id:"mk-mermaid",park:"MK",name:"Under the Sea – Journey of the Little Mermaid",ht:0,tag:"Dark ride"},
+ {id:"mk-ppl",park:"MK",name:"Tomorrowland Transit Authority PeopleMover",ht:0,tag:"Slow · great break"},
+ {id:"mk-carpets",park:"MK",name:"The Magic Carpets of Aladdin",ht:0,tag:"Spinner"},
+ // EPCOT
+ {id:"ep-gotg",park:"EP",name:"Guardians of the Galaxy: Cosmic Rewind",ht:42,tag:"Coaster · spinning"},
+ {id:"ep-tt",park:"EP",name:"Test Track",ht:40,tag:"Fast · outdoor"},
+ {id:"ep-soar",park:"EP",name:"Soarin' Around the World",ht:40,tag:"Flying theater"},
+ {id:"ep-msg",park:"EP",name:"Mission: SPACE (Green)",ht:40,tag:"Motion sim · milder"},
+ {id:"ep-mso",park:"EP",name:"Mission: SPACE (Orange)",ht:44,tag:"Motion sim · intense"},
+ {id:"ep-remy",park:"EP",name:"Remy's Ratatouille Adventure",ht:0,tag:"Trackless dark ride"},
+ {id:"ep-froz",park:"EP",name:"Frozen Ever After",ht:0,tag:"Boat · small drop"},
+ {id:"ep-se",park:"EP",name:"Spaceship Earth",ht:0,tag:"Slow dark ride"},
+ {id:"ep-land",park:"EP",name:"Living with the Land",ht:0,tag:"Boat · greenhouse"},
+ // Hollywood Studios
+ {id:"hs-rnr",park:"HS",name:"Rock 'n' Roller Coaster",ht:48,tag:"Coaster · inversions"},
+ {id:"hs-tot",park:"HS",name:"Twilight Zone Tower of Terror",ht:40,tag:"Drop tower"},
+ {id:"hs-slinky",park:"HS",name:"Slinky Dog Dash",ht:38,tag:"Family coaster"},
+ {id:"hs-rotr",park:"HS",name:"Rise of the Resistance",ht:40,tag:"Star Wars · epic"},
+ {id:"hs-falcon",park:"HS",name:"Millennium Falcon: Smugglers Run",ht:38,tag:"Interactive sim"},
+ {id:"hs-star",park:"HS",name:"Star Tours – The Adventures Continue",ht:40,tag:"Motion sim · 3D"},
+ {id:"hs-alien",park:"HS",name:"Alien Swirling Saucers",ht:32,tag:"Spinner"},
+ {id:"hs-tsm",park:"HS",name:"Toy Story Mania!",ht:0,tag:"Shooter · 3D"},
+ {id:"hs-mmrr",park:"HS",name:"Mickey & Minnie's Runaway Railway",ht:0,tag:"Trackless dark ride"},
+ // Animal Kingdom
+ {id:"ak-fop",park:"AK",name:"Avatar Flight of Passage",ht:44,tag:"Flying sim · must-do"},
+ {id:"ak-ee",park:"AK",name:"Expedition Everest",ht:44,tag:"Coaster · backwards"},
+ {id:"ak-kali",park:"AK",name:"Kali River Rapids",ht:38,tag:"Rapids · you WILL get wet"},
+ {id:"ak-dino",park:"AK",name:"DINOSAUR",ht:40,tag:"Dark ride · rough & loud"},
+ {id:"ak-navi",park:"AK",name:"Na'vi River Journey",ht:0,tag:"Boat · beautiful"},
+ {id:"ak-safari",park:"AK",name:"Kilimanjaro Safaris",ht:0,tag:"Real animals"},
+ {id:"ak-lion",park:"AK",name:"Festival of the Lion King",ht:0,tag:"Show"}
+];
+const ALLERGENS = ["Peanut","Tree nut","Dairy","Egg","Gluten/Wheat","Soy","Fish","Shellfish","Sesame"];
+const FOOD = [
+ {id:"f-bog",park:"MK",name:"Be Our Guest",type:"Table service",notes:"Beast's castle; strong allergy menu",flags:["Dairy","Gluten/Wheat","Egg"]},
+ {id:"f-skipper",park:"MK",name:"Skipper Canteen",type:"Table service",notes:"Jungle Cruise theming; allergy-friendly menu",flags:["Peanut","Tree nut","Soy"]},
+ {id:"f-pecos",park:"MK",name:"Pecos Bill",type:"Quick service · Mobile Order",notes:"Tex-Mex, easy customization",flags:["Dairy","Gluten/Wheat"]},
+ {id:"f-dole",park:"MK",name:"Aloha Isle (Dole Whip)",type:"Snack",notes:"Classic Dole Whip is dairy-free & gluten-free",flags:[]},
+ {id:"f-space220",park:"EP",name:"Space 220",type:"Table service",notes:"Dine 'in orbit'; book 60 days out",flags:["Shellfish","Dairy","Gluten/Wheat"]},
+ {id:"f-garden",park:"EP",name:"Garden Grill",type:"Character dining",notes:"Chip 'n' Dale; family-style, handles allergies well",flags:["Dairy","Gluten/Wheat","Egg"]},
+ {id:"f-regal",park:"EP",name:"Regal Eagle Smokehouse",type:"Quick service · Mobile Order",notes:"BBQ with dedicated allergen menu",flags:["Gluten/Wheat","Soy"]},
+ {id:"f-lesh",park:"EP",name:"Les Halles Boulangerie",type:"Quick service",notes:"French bakery in France pavilion",flags:["Gluten/Wheat","Dairy","Egg","Tree nut"]},
+ {id:"f-sci",park:"HS",name:"Sci-Fi Dine-In Theater",type:"Table service",notes:"Eat in a 'car' at a drive-in movie",flags:["Dairy","Gluten/Wheat"]},
+ {id:"f-woody",park:"HS",name:"Woody's Lunch Box",type:"Quick service · Mobile Order",notes:"Toy Story Land; grilled cheese & totchos",flags:["Dairy","Gluten/Wheat","Egg"]},
+ {id:"f-docking",park:"HS",name:"Docking Bay 7",type:"Quick service · Mobile Order",notes:"Galaxy's Edge; best QS in the park",flags:["Soy","Sesame"]},
+ {id:"f-tiffins",park:"AK",name:"Tiffins",type:"Table service",notes:"Signature dining; excellent chef allergy support",flags:["Shellfish","Fish","Tree nut"]},
+ {id:"f-satuli",park:"AK",name:"Satu'li Canteen",type:"Quick service · Mobile Order",notes:"Pandora bowls; very allergy-flexible",flags:["Soy"]},
+ {id:"f-flame",park:"AK",name:"Flame Tree Barbecue",type:"Quick service · Mobile Order",notes:"Ribs with a view",flags:["Gluten/Wheat","Soy"]},
+ {id:"f-yak",park:"AK",name:"Yak & Yeti",type:"Table service",notes:"Pan-Asian near Everest",flags:["Peanut","Tree nut","Soy","Shellfish","Sesame","Fish"]},
+ // --- Magic Kingdom quick service & snacks ---
+ {id:"f-caseys",park:"MK",name:"Casey's Corner",type:"Quick service · Mobile Order",notes:"Hot dogs & corn dog nuggets on Main Street",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-cosmic",park:"MK",name:"Cosmic Ray's Starlight Cafe",type:"Quick service · Mobile Order",notes:"Huge menu + toppings bar; easiest picky-eater spot",flags:["Gluten/Wheat","Dairy","Egg"]},
+ {id:"f-columbia",park:"MK",name:"Columbia Harbour House",type:"Quick service · Mobile Order",notes:"Seafood & grilled chicken; quiet upstairs seating",flags:["Fish","Shellfish","Gluten/Wheat"]},
+ {id:"f-friars",park:"MK",name:"The Friar's Nook",type:"Quick service · Mobile Order",notes:"Loaded tots & mac bowls",flags:["Dairy","Gluten/Wheat"]},
+ {id:"f-sleepy",park:"MK",name:"Sleepy Hollow",type:"Snack",notes:"Waffle sandwiches & fresh funnel cakes",flags:["Gluten/Wheat","Dairy","Egg"]},
+ {id:"f-gaston",park:"MK",name:"Gaston's Tavern",type:"Snack",notes:"Cinnamon rolls & LeFou's Brew",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-sunshine-t",park:"MK",name:"Sunshine Tree Terrace",type:"Snack",notes:"Citrus Swirl — the other classic soft-serve",flags:["Dairy"]},
+ {id:"f-storybook",park:"MK",name:"Storybook Treats",type:"Snack",notes:"Fantasyland soft-serve cones",flags:["Dairy"]},
+ {id:"f-westward",park:"MK",name:"Westward Ho",type:"Snack",notes:"Frontierland cart — corn dogs & drinks",flags:null},
+ {id:"f-mainbake",park:"MK",name:"Main Street Bakery (Starbucks)",type:"Snack",notes:"Coffee + pastries at rope drop",flags:["Gluten/Wheat","Dairy","Egg","Tree nut","Soy"]},
+ // --- EPCOT quick service & World Showcase kiosks ---
+ {id:"f-sunshine",park:"EP",name:"Sunshine Seasons",type:"Quick service",notes:"Food-court variety in The Land; great for split cravings",flags:["Gluten/Wheat","Dairy","Soy"]},
+ {id:"f-connect",park:"EP",name:"Connections Eatery",type:"Quick service · Mobile Order",notes:"Burgers, pizza & salads; tons of seating",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-kringla",park:"EP",name:"Kringla Bakeri Og Kafe",type:"Snack",notes:"Norway — school bread is the move",flags:["Gluten/Wheat","Dairy","Egg","Tree nut"]},
+ {id:"f-glaces",park:"EP",name:"L'Artisan des Glaces",type:"Snack",notes:"France — ice cream & macaron sandwiches",flags:["Dairy","Egg","Tree nut","Gluten/Wheat"]},
+ {id:"f-cantina",park:"EP",name:"La Cantina de San Angel",type:"Quick service · Mobile Order",notes:"Mexico — tacos & churros on the lagoon",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-yorkshire",park:"EP",name:"Yorkshire County Fish Shop",type:"Quick service",notes:"UK — fish & chips window",flags:["Fish","Gluten/Wheat"]},
+ {id:"f-karamell",park:"EP",name:"Karamell-Küche",type:"Snack",notes:"Germany — fresh caramel everything",flags:["Dairy","Tree nut","Peanut","Gluten/Wheat"]},
+ {id:"f-katsura",park:"EP",name:"Katsura Grill",type:"Quick service",notes:"Japan — teriyaki & udon in a garden",flags:["Soy","Gluten/Wheat","Fish","Sesame"]},
+ {id:"f-sommerfest",park:"EP",name:"Sommerfest",type:"Quick service",notes:"Germany — brats & pretzels",flags:["Gluten/Wheat"]},
+ {id:"f-choza",park:"EP",name:"Choza de Margarita",type:"Snack",notes:"Mexico — margaritas & antojitos (grown-ups' stop)",flags:null},
+ {id:"f-refresh",park:"EP",name:"Refreshment Port",type:"Snack",notes:"Rotating poutine & Dole Whip floats",flags:null},
+ // --- Hollywood Studios quick service & snacks ---
+ {id:"f-abc",park:"HS",name:"ABC Commissary",type:"Quick service · Mobile Order",notes:"Air-conditioned; burgers & bowls",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-backlot",park:"HS",name:"Backlot Express",type:"Quick service · Mobile Order",notes:"Big seating; burgers, chicken, salads",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-ronto",park:"HS",name:"Ronto Roasters",type:"Quick service · Mobile Order",notes:"Galaxy's Edge — the Ronto Wrap is elite",flags:["Gluten/Wheat","Sesame"]},
+ {id:"f-milk",park:"HS",name:"Milk Stand",type:"Snack",notes:"Blue & Green Milk — both are plant-based (dairy-free)",flags:[]},
+ {id:"f-rosies",park:"HS",name:"Rosie's All-American Cafe",type:"Quick service",notes:"Sunset Blvd — burgers & nuggets near ToT",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-dockside",park:"HS",name:"Dockside Diner",type:"Snack",notes:"Echo Lake — loaded fries & shakes",flags:null},
+ {id:"f-scoops",park:"HS",name:"Hollywood Scoops",type:"Snack",notes:"Hand-scooped ice cream on Sunset",flags:["Dairy"]},
+ {id:"f-oga",park:"HS",name:"Oga's Cantina",type:"Lounge · reservation",notes:"Galaxy's Edge bar — kids welcome, book early",flags:null},
+ {id:"f-trolley",park:"HS",name:"The Trolley Car Cafe (Starbucks)",type:"Snack",notes:"Coffee on Hollywood Blvd",flags:["Gluten/Wheat","Dairy","Egg","Tree nut","Soy"]},
+ // --- Animal Kingdom quick service & snacks ---
+ {id:"f-resto",park:"AK",name:"Restaurantosaurus",type:"Quick service · Mobile Order",notes:"DinoLand burgers with a toppings bar",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-pizzafari",park:"AK",name:"Pizzafari",type:"Quick service · Mobile Order",notes:"Pizza + A/C; reliable with kids",flags:["Gluten/Wheat","Dairy"]},
+ {id:"f-harambe",park:"AK",name:"Harambe Market",type:"Quick service",notes:"Africa — bowls, ribs & gyro flatbreads",flags:["Gluten/Wheat","Sesame"]},
+ {id:"f-yaklocal",park:"AK",name:"Yak & Yeti Local Food Cafes",type:"Quick service · Mobile Order",notes:"Asia — quick-service window of Yak & Yeti",flags:["Peanut","Tree nut","Soy","Gluten/Wheat","Sesame"]},
+ {id:"f-eightspoon",park:"AK",name:"Eight Spoon Cafe",type:"Snack",notes:"Baked mac & cheese with pulled pork",flags:["Dairy","Gluten/Wheat"]},
+ {id:"f-pongu",park:"AK",name:"Pongu Pongu",type:"Snack",notes:"Pandora — Night Blossom & pineapple lumpia",flags:null},
+ {id:"f-kamal",park:"AK",name:"Mr. Kamal's",type:"Snack",notes:"Asia — seasoned fries & hummus",flags:null},
+ {id:"f-creature",park:"AK",name:"Creature Comforts (Starbucks)",type:"Snack",notes:"Coffee by the Tree of Life",flags:["Gluten/Wheat","Dairy","Egg","Tree nut","Soy"]},
+ {id:"f-nomad",park:"AK",name:"Nomad Lounge",type:"Lounge · walk-up",notes:"Tiffins' porch — best quiet break in WDW",flags:null},
+ {id:"f-anandapur",park:"AK",name:"Anandapur Ice Cream Truck",type:"Snack",notes:"Soft-serve by Everest",flags:["Dairy"]}
+];
+const DEFAULT_PLAN_TODOS = ["Book park reservations / tickets","Set 7:00 AM alarm for Lightning Lane day-of booking","Dining reservations (opens 60 days out)","Link tickets in My Disney Experience app","Order MagicBands","Arrange stroller / stroller rental","Check height chart vs. must-do rides","Note allergy needs on every dining reservation"];
+const DEFAULT_PACK_TODOS = ["Ponchos (cheaper than in-park!)","Sunscreen","Portable phone chargers","Refillable water bottles","Snacks for lines","Epi-pen / allergy meds","Blister bandages","Autograph book & fat pen","Cooling towels","Ziploc for phones on water rides"];
+
+/* ============================================================
+   STORAGE — works in Claude artifacts, self-hosted PWA, or memory
+   ============================================================ */
+const KEY="park-day-planner-v1";
+let mem=null;
+const store={
+  async load(){
+    try{ if(window.storage){const r=await window.storage.get(KEY);return r?JSON.parse(r.value):null;} }catch(e){}
+    try{ if(typeof localStorage!=="undefined"){const r=localStorage.getItem(KEY);return r?JSON.parse(r):null;} }catch(e){}
+    return mem;
+  },
+  async save(state){
+    setSaved("saving…");
+    try{ if(window.storage){await window.storage.set(KEY,JSON.stringify(state));setSaved("saved");return;} }catch(e){}
+    try{ if(typeof localStorage!=="undefined"){localStorage.setItem(KEY,JSON.stringify(state));setSaved("saved");return;} }catch(e){}
+    mem=state; setSaved("in memory");
+  }
+};
+function setSaved(t){document.getElementById("saveState").textContent=t}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let S={
+  tripName:"Our Disney Trip",
+  tripDate:"",
+  kids:[],                 // {id,name,heightIn,allergies:[]}
+  days:[],                 // {id,label,park,items:[{kind:'ride'|'food'|'note',refId,txt}]}
+  lists:[
+    {id:"l-plan",title:"Before you go",items:DEFAULT_PLAN_TODOS.map(t=>({t,done:false}))},
+    {id:"l-pack",title:"Packing",items:DEFAULT_PACK_TODOS.map(t=>({t,done:false}))}
+  ],
+  waits:{},                // rideName(lower) -> minutes
+  extraRides:[],           // synced from ThemeParks.wiki, ht:-1 = verify in park
+  extraFood:[],            // synced restaurants, flags:null = no allergen data
+  lastSync:""
+};
+const allRides=()=>RIDES.concat(S.extraRides||[]);
+const allFood=()=>FOOD.concat(S.extraFood||[]);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const save=()=>store.save(S);
+
+/* ============================================================
+   RENDER — FAMILY
+   ============================================================ */
+function renderKids(){
+  const el=document.getElementById("kidsList");
+  document.getElementById("kidsEmpty").style.display=S.kids.length?"none":"block";
+  el.innerHTML=S.kids.map(k=>`
+   <div class="card kidCard" data-kid="${k.id}">
+     <div class="bigAv">${(k.name||"?").slice(0,1).toUpperCase()}</div>
+     <div style="flex:1">
+       <label class="f">Name</label>
+       <input type="text" value="${esc(k.name)}" data-edit="name">
+       <label class="f">Height (inches)</label>
+       <input type="number" min="20" max="80" value="${k.heightIn||""}" data-edit="height" placeholder="e.g. 41">
+       <label class="f">Allergies</label>
+       <div class="chips">${ALLERGENS.map(a=>`<button class="chip ${k.allergies.includes(a)?"on":""}" data-allergy="${a}">${a}</button>`).join("")}</div>
+       <div style="margin-top:10px"><button class="btn danger small" data-delkid>Remove</button></div>
+     </div>
+   </div>`).join("");
+}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+/* ============================================================
+   RENDER — RIDES
+   ============================================================ */
+let rideFilter="all", foodFilter="all";
+function pillbar(elId,cur,onpick){
+  const el=document.getElementById(elId);
+  const opts=[["all","All parks"],...Object.entries(PARKS).map(([k,v])=>[k,v.name])];
+  el.innerHTML=opts.map(([k,n])=>`<button class="pill p-${k} ${cur===k?"active":""}" data-park="${k}">${n}</button>`).join("");
+  el.querySelectorAll(".pill").forEach(b=>b.onclick=()=>onpick(b.dataset.park));
+}
+function gateHTML(ride){
+  if(ride.ht===-1) return `<div class="hint">Height requirement not on file — check the sign at the entrance or My Disney Experience.</div>`;
+  if(!S.kids.length) return `<div class="hint">Add kids in the Family tab to see who can ride.</div>`;
+  return `<div class="gate">`+S.kids.map(k=>{
+    const h=Number(k.heightIn)||0;
+    const ok=!ride.ht||h>=ride.ht;
+    const diff=ride.ht&&h?ride.ht-h:0;
+    return `<span class="kid ${ok?"ok":"no"}"><span class="av">${(k.name||"?").slice(0,1).toUpperCase()}</span>${esc(k.name)}${ok?"":` <span class="short">(${diff}" short)</span>`}</span>`;
+  }).join("")+`</div>`;
+}
+function waitFor(name){
+  const w=S.waits[name.toLowerCase()];
+  return (w===0||w>0)?`<span class="wait">⏱ ${w} min</span>`:"";
+}
+function renderRides(){
+  pillbar("ridePills",rideFilter,p=>{rideFilter=p;renderRides();});
+  const q=norm(document.getElementById("rideSearch")?.value||"");
+  const list=allRides().filter(r=>(rideFilter==="all"||r.park===rideFilter)&&(!q||norm(r.name).includes(q)||norm(r.tag).includes(q)));
+  const synced=S.lastSync?`<div class="hint" style="margin-bottom:8px">✓ Full park roster synced ${S.lastSync} — ${allRides().length} attractions on file.</div>`:"";
+  document.getElementById("ridesList").innerHTML=synced+list.map(r=>`
+   <div class="card ride">
+     <div class="top"><h3>${esc(r.name)}</h3><span class="parkTag t-${r.park}">${PARKS[r.park].short}</span></div>
+     <div class="meta">
+       ${r.ht>0?`<span class="htReq">📏 ${r.ht}" min</span>`:r.ht===-1?`<span class="htReq">📏 Check sign</span>`:`<span style="background:#e2f5ea;color:var(--green)">Any height</span>`}
+       <span>${esc(r.tag)}</span>${waitFor(r.name)}
+     </div>
+     ${gateHTML(r)}
+     <div class="rideActions"><button class="btn ghost small" data-addplan="ride:${r.id}">+ Add to a day</button></div>
+   </div>`).join("")||`<div class="empty">No rides match — try another word or tap ⇩ Sync all for the full roster.</div>`;
+}
+
+/* ============================================================
+   RENDER — FOOD
+   ============================================================ */
+function familyAllergens(){return [...new Set(S.kids.flatMap(k=>k.allergies))]}
+function renderFood(){
+  pillbar("foodPills",foodFilter,p=>{foodFilter=p;renderFood();});
+  const fam=familyAllergens();
+  const q=norm(document.getElementById("foodSearch")?.value||"");
+  const list=allFood().filter(f=>(foodFilter==="all"||f.park===foodFilter)&&(!q||norm(f.name).includes(q)||norm(f.type).includes(q)||norm(f.notes).includes(q)));
+  document.getElementById("foodList").innerHTML=list.map(f=>{
+    const noData=f.flags===null||f.flags===undefined;
+    const hits=noData?[]:f.flags.filter(a=>fam.includes(a));
+    return `
+   <div class="card ride">
+     <div class="top"><h3>${esc(f.name)}</h3><span class="parkTag t-${f.park}">${PARKS[f.park].short}</span></div>
+     <div class="meta"><span>${esc(f.type)}</span></div>
+     ${f.notes?`<div class="hint">${esc(f.notes)}</div>`:""}
+     ${noData
+        ?`<div><span class="allergyFlag" style="background:#fff4d6;color:#8a6400">ⓘ No allergen data — use Mobile Order's allergy filter or ask a chef</span></div>`
+        :fam.length?(hits.length
+        ?`<div>${hits.map(a=>`<span class="allergyFlag">⚠ contains ${a} items — ask a chef</span>`).join(" ")}</div>`
+        :`<div><span class="allergyFlag allergyOk">✓ No flagged allergens for your family</span></div>`):""}
+     <div class="rideActions"><button class="btn ghost small" data-addplan="food:${f.id}">+ Add to a day</button><button class="btn ghost small" data-addtodo="${f.id}">☑ Add to list</button></div>
+   </div>`;}).join("")||`<div class="empty">No spots match — try another word or tap ⇩ Sync all in the Rides tab to pull every open location.</div>`;
+}
+
+/* ============================================================
+   RENDER — PLAN (park days)
+   ============================================================ */
+function itemInfo(it){
+  if(it.kind==="ride"){const r=allRides().find(x=>x.id===it.refId);return r?{nm:r.name,sub:(r.ht?r.ht+`" min · `:"")+PARKS[r.park].short,color:"var(--"+r.park.toLowerCase()+")"}:null;}
+  if(it.kind==="food"){const f=allFood().find(x=>x.id===it.refId);return f?{nm:"🍽 "+f.name,sub:PARKS[f.park].short+" · "+f.type,color:"var(--teal)"}:null;}
+  return {nm:it.txt,sub:"note",color:"#b8bdd6"};
+}
+const openGates=new Set();
+const dayFilters={}; // day.id -> all|ride|food|note
+function fmtTime(t){ // "13:30" -> "1:30 PM"
+  const [h,m]=t.split(":").map(Number);
+  if(isNaN(h))return t;
+  const ap=h>=12?"PM":"AM"; const hh=((h+11)%12)+1;
+  return hh+":"+String(m).padStart(2,"0")+" "+ap;
+}
+function renderDays(){
+  const el=document.getElementById("daysList");
+  document.getElementById("daysEmpty").style.display=S.days.length?"none":"block";
+  el.innerHTML=S.days.map((d,di)=>`
+   <div class="card dayCard" data-day="${d.id}">
+     <h3><input type="text" value="${esc(d.label)}" data-edit="label" style="max-width:150px;border:none;border-bottom:1px dashed #dde3f0;border-radius:0;padding:2px 0;font:inherit">
+       <select data-edit="park" style="width:auto;flex:1">
+         <option value="">Pick a park…</option>
+         ${Object.entries(PARKS).map(([k,v])=>`<option value="${k}" ${d.park===k?"selected":""}>${v.name}</option>`).join("")}
+       </select>
+     </h3>
+     ${d.items.length>1?`<div class="dayFilter">${[["all","All"],["ride","🎢 Rides"],["food","🍽 Food"],["note","📝 Notes"]].map(([k,n])=>`<button class="${(dayFilters[d.id]||"all")===k?"on":""}" data-dayfilter="${k}">${n}</button>`).join("")}</div>`:""}
+     <div style="margin-top:8px">
+       ${d.items.length?d.items.map((it,ii)=>{
+          const df=dayFilters[d.id]||"all";
+          if(df!=="all"&&it.kind!==df) return "";
+          const info=itemInfo(it); if(!info) return "";
+          const key=d.id+":"+ii;
+          const isRide=it.kind==="ride", isFood=it.kind==="food";
+          const ride=isRide?allRides().find(x=>x.id===it.refId):null;
+          const open=openGates.has(key);
+          return `<div class="planItem">
+            <span class="dot" style="background:${info.color}"></span>
+            <span style="flex:1"><span class="nm">${esc(info.nm)}</span>${it.time?`<span class="timeChip">🕐 ${esc(fmtTime(it.time))}</span>`:""}<br><span class="sub">${esc(info.sub)}</span></span>
+            ${isFood?`<input type="time" value="${esc(it.time||"")}" data-timeidx="${ii}" aria-label="Meal time">`:""}
+            ${isRide&&ride?`<button class="expandBtn" data-expand="${key}" aria-label="Show who can ride" aria-expanded="${open}">${open?"▲ kids":"▼ kids"}</button>`:""}
+            ${(dayFilters[d.id]||"all")==="all"?`<button data-move="up:${ii}" aria-label="Move up">▲</button>
+            <button data-move="down:${ii}" aria-label="Move down">▼</button>`:""}
+            <button data-rm="${ii}" aria-label="Remove">✕</button>
+            ${open&&ride?`<div class="expandGate">${gateHTML(ride)}</div>`:""}
+          </div>`;}).join(""):`<div class="hint">Nothing planned yet — add rides &amp; food from their tabs, or a note below.</div>`}
+     </div>
+     ${(()=>{ if(!d.park) return "";
+        const hits=[];
+        S.lists.forEach(L=>L.items.forEach((it,i)=>{
+          if(!it.foodId) return;
+          const f=allFood().find(x=>x.id===it.foodId);
+          if(f&&f.park===d.park) hits.push({L,it,i,f});
+        }));
+        if(!hits.length) return "";
+        const open=hits.filter(h=>!h.it.done);
+        return `<div class="dayTry"><h4>🍽 To try at ${PARKS[d.park].name} — from your lists (${hits.length-open.length}/${hits.length})</h4>`+
+          hits.map(h=>`<div class="todo ${h.it.done?"done":""}">
+            <input type="checkbox" ${h.it.done?"checked":""} data-daytodo="${h.L.id}:${h.i}" aria-label="${esc(h.it.t)}">
+            <span class="txt">${esc(h.it.t)}<br><span class="sub" style="font-size:.72rem;color:#8b90ad;font-weight:700">${esc(h.f.name)}</span></span>
+            <span class="from">${esc(h.L.title)}</span>
+          </div>`).join("")+`</div>`;})()}
+     <div class="addRow"><input type="text" placeholder="Add a note (parade, break, hotel…)" data-noteinput><button class="btn small" data-addnote>Add</button></div>
+     <div style="margin-top:8px"><button class="btn danger small" data-delday>Delete day</button></div>
+   </div>`).join("");
+}
+function promptDay(cb){
+  if(!S.days.length){alert("Add a park day first (Plan tab).");return;}
+  if(S.days.length===1){cb(S.days[0]);return;}
+  const pick=prompt("Add to which day?\n"+S.days.map((d,i)=>`${i+1}. ${d.label}${d.park?" — "+PARKS[d.park].name:""}`).join("\n")+"\n\nEnter a number:");
+  const n=parseInt(pick,10);
+  if(n>=1&&n<=S.days.length) cb(S.days[n-1]);
+}
+
+/* ============================================================
+   RENDER — TODOS
+   ============================================================ */
+const foldedLists=new Set();
+const linkedFood={}; // listId -> foodId chosen for the next added item
+const draftText={};  // listId -> note typed but not yet added (survives re-renders)
+function renderFoodResults(inp){
+  const box=inp.parentElement.querySelector("[data-results]");
+  const q=norm(inp.value);
+  if(!q||q.length<2){box.innerHTML="";return;}
+  const hits=allFood().filter(f=>norm(f.name).includes(q)||norm(f.type).includes(q)||norm(f.notes||"").includes(q)).slice(0,8);
+  box.innerHTML=hits.length?hits.map(f=>`<button type="button" data-pickfood="${f.id}">
+      <span class="parkTag t-${f.park}" style="font-size:.6rem">${PARKS[f.park].short}</span>
+      <span style="flex:1">${esc(f.name)}<br><span class="sub2">${esc(f.type)}</span></span></button>`).join("")
+    :`<button type="button" disabled style="color:#8b90ad">No matches — try ⇩ Sync all for the full roster</button>`;
+}
+function promptList(cb){
+  if(!S.lists.length){alert("Make a list first (Lists tab).");return;}
+  if(S.lists.length===1){cb(S.lists[0]);return;}
+  const pick=prompt("Add to which list?\n"+S.lists.map((L,i)=>`${i+1}. ${L.title}`).join("\n")+"\n\nEnter a number:");
+  const n=parseInt(pick,10);
+  if(n>=1&&n<=S.lists.length) cb(S.lists[n-1]);
+}
+function renderLists(){
+  const el=document.getElementById("listsWrap");
+  if(!S.lists.length){el.innerHTML='<div class="empty">No lists yet — tap “+ New list” to make one (Groceries, Souvenir budget, Resort day…).</div>';return;}
+  el.innerHTML=S.lists.map(L=>{
+    const done=L.items.filter(i=>i.done).length, tot=L.items.length;
+    const pct=tot?Math.round(done/tot*100):0;
+    const folded=foldedLists.has(L.id);
+    return `<div class="listCard" data-list="${L.id}">
+      <div class="listHead">
+        <button class="fold" data-fold aria-expanded="${!folded}" aria-label="Collapse list">${folded?"▸":"▾"}</button>
+        <input class="title" type="text" value="${esc(L.title)}" data-listtitle aria-label="List name">
+        <span class="count">${done}/${tot}</span>
+      </div>
+      <div class="progress" role="progressbar" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
+      ${folded?"":`
+        <div>${L.items.map((t,i)=>`
+          <div class="todo ${t.done?"done":""}">
+            <input type="checkbox" ${t.done?"checked":""} data-todo="${i}" aria-label="${esc(t.t)}">
+            <span class="txt">${esc(t.t)}${(()=>{const f=t.foodId?allFood().find(x=>x.id===t.foodId):null;
+              return f?`<br><span class="parkTag t-${f.park}" style="font-size:.6rem">${PARKS[f.park].short}</span> <span class="sub" style="font-size:.72rem;color:#8b90ad;font-weight:700">${esc(f.name)}${f.type&&f.type!=="Synced"?" · "+esc(f.type):""}</span>`:"";})()}</span>
+            <button class="del" data-deltodo="${i}" aria-label="Delete">✕</button>
+          </div>`).join("")||'<div class="hint" style="padding:8px 0">Empty — add the first item below.</div>'}</div>
+        <div class="addRow"><input type="text" data-newitem value="${esc(draftText[L.id]||"")}" placeholder="Add an item…"><button class="btn small" data-additem>Add</button></div>
+        ${(()=>{const c=linkedFood[L.id]?allFood().find(x=>x.id===linkedFood[L.id]):null;
+          return c?`<div class="linkedChip"><span class="parkTag t-${c.park}" style="font-size:.6rem">${PARKS[c.park].short}</span>${esc(c.name)}<button class="clr" data-clearlink aria-label="Remove link">✕</button></div>
+            <div class="hint" style="margin-top:4px">Linked — it'll attach to the next item you add.</div>`
+          :`<div class="linkBox"><input type="search" data-foodfind placeholder="🔍 Link a restaurant / snack (type to search)…" autocomplete="off"><div class="foodResults" data-results></div></div>`;})()}
+        <div style="text-align:right;margin-top:6px"><button class="del-list" data-dellist>Delete list</button></div>`}
+    </div>`;}).join("")||`<div class="empty">No spots match — try another word or tap ⇩ Sync all in the Rides tab to pull every open location.</div>`;
+}
+const renderTodos=renderLists;
+
+/* ============================================================
+   FULL ROSTER SYNC — pulls every attraction & restaurant per park
+   from ThemeParks.wiki /children so nothing is missing
+   ============================================================ */
+const norm=s=>String(s||"").toLowerCase().replace(/[™®'’]/g,"").replace(/\s+/g," ").trim();
+function known(list,name){const n=norm(name);return list.some(x=>{const k=norm(x.name);return k===n||k.includes(n)||n.includes(k);});}
+async function syncAll(){
+  const btn=document.getElementById("syncBtn");
+  btn.textContent="Syncing…";btn.disabled=true;
+  let addedR=0,addedF=0,ok=false;
+  try{
+    for(const [p,id] of Object.entries(TPW_IDS)){
+      const res=await fetch(`https://api.themeparks.wiki/v1/entity/${id}/children`);
+      if(!res.ok) continue;
+      const data=await res.json();ok=true;
+      (data.children||[]).forEach(e=>{
+        if(e.entityType==="ATTRACTION"&&!known(allRides(),e.name)){
+          S.extraRides.push({id:"x-"+(e.id||uid()),park:p,name:e.name,ht:-1,tag:"Synced"});addedR++;
+        }
+        if(e.entityType==="RESTAURANT"&&!known(allFood(),e.name)){
+          S.extraFood.push({id:"xf-"+(e.id||uid()),park:p,name:e.name,type:"Synced",notes:"",flags:null});addedF++;
+        }
+      });
+    }
+    if(!ok) throw new Error("no data");
+    S.lastSync=new Date().toLocaleDateString();
+    save();renderRides();renderFood();
+    alert(`Synced the full Disney World roster.\nAdded ${addedR} attractions and ${addedF} restaurants.\nSynced items show "Check sign" for height and "No allergen data" until verified.`);
+  }catch(e){
+    alert("Couldn't reach ThemeParks.wiki (network or CORS in this preview). Sync will work once the app is hosted on your server.");
+  }
+  btn.textContent="⇩ Sync all";btn.disabled=false;
+}
+
+/* ============================================================
+   LIVE WAIT TIMES (ThemeParks.wiki — free, no key)
+   ============================================================ */
+async function fetchWaits(){
+  const btn=document.getElementById("liveBtn");
+  btn.textContent="Loading…";btn.disabled=true;
+  try{
+    const parks=rideFilter==="all"?Object.keys(TPW_IDS):[rideFilter];
+    for(const p of parks){
+      const res=await fetch(`https://api.themeparks.wiki/v1/entity/${TPW_IDS[p]}/live`);
+      if(!res.ok) throw new Error("bad status");
+      const data=await res.json();
+      (data.liveData||[]).forEach(e=>{
+        const w=e?.queue?.STANDBY?.waitTime;
+        if(w!==undefined&&w!==null) S.waits[e.name.toLowerCase()]=w;
+        // fuzzy: strip trademark chars for matching
+        if(e.name) S.waits[e.name.toLowerCase().replace(/[™®']/g,"")]=w??S.waits[e.name.toLowerCase()];
+      });
+    }
+    // second pass: match our ride names loosely
+    allRides().forEach(r=>{
+      const key=r.name.toLowerCase().replace(/[™®']/g,"");
+      for(const k in S.waits){ if(k.replace(/[™®']/g,"").includes(key.split(" (")[0])||key.includes(k.split(" (")[0])){ S.waits[r.name.toLowerCase()]=S.waits[k]; break; } }
+    });
+    save();renderRides();
+    btn.textContent="↻ Live waits";
+  }catch(e){
+    btn.textContent="↻ Live waits";
+    alert("Couldn't load live wait times right now (network or CORS). They'll work when the app is hosted with internet access.");
+  }
+  btn.disabled=false;
+}
+
+/* ============================================================
+   COUNTDOWN + HEADER
+   ============================================================ */
+function renderHeader(){
+  document.getElementById("tripName").value=S.tripName;
+  document.getElementById("tripDate").value=S.tripDate;
+  const cd=document.getElementById("cdDays");
+  if(S.tripDate){
+    const days=Math.ceil((new Date(S.tripDate+"T00:00:00")-new Date())/86400000);
+    document.getElementById("cdText").innerHTML=days>0?`<b>${days}</b> days to go`:(days>-7?`<b>It's trip time! 🎉</b>`:`<b>Trip memories ✨</b>`);
+  } else document.getElementById("cdText").innerHTML=`Set your trip date →`;
+}
+// twinkle stars in header
+(function(){const s=document.getElementById("stars");for(let i=0;i<26;i++){const d=document.createElement("i");d.style.left=Math.random()*100+"%";d.style.top=Math.random()*100+"%";d.style.opacity=(.2+Math.random()*.6);s.appendChild(d);}})();
+
+/* ============================================================
+   EVENTS (delegated)
+   ============================================================ */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));
+  document.querySelectorAll("section.tab").forEach(t=>t.classList.toggle("active",t.id==="tab-"+b.dataset.tab));
+  window.scrollTo({top:0});
+});
+document.getElementById("tripName").oninput=e=>{S.tripName=e.target.value;save();};
+document.getElementById("tripDate").onchange=e=>{S.tripDate=e.target.value;save();renderHeader();};
+document.getElementById("addKid").onclick=()=>{S.kids.push({id:uid(),name:"New kiddo",heightIn:"",allergies:[]});save();renderKids();renderRides();renderFood();};
+document.getElementById("addDay").onclick=()=>{S.days.push({id:uid(),label:"Day "+(S.days.length+1),park:"",items:[]});save();renderDays();};
+document.getElementById("liveBtn").onclick=fetchWaits;
+document.getElementById("rideSearch").oninput=()=>renderRides();
+document.body.addEventListener("input",e=>{
+  if(e.target.matches("[data-foodfind]")) renderFoodResults(e.target);
+  if(e.target.matches("[data-newitem]")){
+    const lc=e.target.closest("[data-list]");
+    if(lc) draftText[lc.dataset.list]=e.target.value;
+  }
+});
+document.getElementById("foodSearch").oninput=()=>renderFood();
+document.getElementById("syncBtn").onclick=syncAll;
+document.getElementById("addList").onclick=()=>{
+  const name=prompt("Name your list:","New list");
+  if(name&&name.trim()){S.lists.push({id:uid(),title:name.trim(),items:[]});save();renderLists();}
+};
+
+document.body.addEventListener("click",e=>{
+  const t=e.target;
+  // family chips / delete
+  const kidCard=t.closest("[data-kid]");
+  if(kidCard){
+    const k=S.kids.find(x=>x.id===kidCard.dataset.kid);
+    if(t.dataset.allergy!==undefined&&t.dataset.allergy){
+      const a=t.dataset.allergy;
+      k.allergies=k.allergies.includes(a)?k.allergies.filter(x=>x!==a):[...k.allergies,a];
+      save();renderKids();renderFood();return;
+    }
+    if(t.hasAttribute("data-delkid")){S.kids=S.kids.filter(x=>x.id!==k.id);save();renderKids();renderRides();renderFood();return;}
+  }
+  // add a food spot to a to-do list ("foods to try")
+  const addTodoBtn=t.closest("[data-addtodo]");
+  if(addTodoBtn){
+    const f=allFood().find(x=>x.id===addTodoBtn.dataset.addtodo);
+    if(f) promptList(L=>{L.items.push({t:"Try: "+f.name,done:false,foodId:f.id});save();renderLists();
+      addTodoBtn.textContent="✓ Added";setTimeout(()=>addTodoBtn.textContent="☑ Add to list",1200);});
+    return;
+  }
+  // add ride/food to a day
+  const addPlanBtn=t.closest("[data-addplan]");
+  if(addPlanBtn){
+    const [kind,refId]=addPlanBtn.dataset.addplan.split(":");
+    promptDay(d=>{d.items.push({kind,refId});save();renderDays();addPlanBtn.textContent="✓ Added";setTimeout(()=>addPlanBtn.textContent="+ Add to a day",1200);});
+    return;
+  }
+  // expand who-can-ride on plan items
+  const expBtn=t.closest("[data-expand]");
+  if(expBtn){
+    openGates.has(expBtn.dataset.expand)?openGates.delete(expBtn.dataset.expand):openGates.add(expBtn.dataset.expand);
+    renderDays();return;
+  }
+  // day card actions
+  const dayCard=t.closest("[data-day]");
+  if(dayCard){
+    const d=S.days.find(x=>x.id===dayCard.dataset.day);
+    if(t.dataset.dayfilter){dayFilters[d.id]=t.dataset.dayfilter;renderDays();return;}
+    if(t.hasAttribute("data-delday")){if(confirm("Delete this day?")){S.days=S.days.filter(x=>x.id!==d.id);save();renderDays();}return;}
+    if(t.hasAttribute("data-addnote")){
+      const inp=dayCard.querySelector("[data-noteinput]");
+      if(inp.value.trim()){d.items.push({kind:"note",txt:inp.value.trim()});inp.value="";save();renderDays();}
+      return;
+    }
+    if(t.dataset.rm!==undefined&&t.dataset.rm!==""){d.items.splice(+t.dataset.rm,1);save();renderDays();return;}
+    if(t.dataset.move){
+      const [dir,i]=t.dataset.move.split(":");const ii=+i;const j=dir==="up"?ii-1:ii+1;
+      if(j>=0&&j<d.items.length){[d.items[ii],d.items[j]]=[d.items[j],d.items[ii]];save();renderDays();}
+      return;
+    }
+  }
+  // lists
+  const listCard=t.closest("[data-list]");
+  if(listCard){
+    const L=S.lists.find(x=>x.id===listCard.dataset.list);
+    const pick=t.closest("[data-pickfood]");
+    if(pick&&!pick.disabled){linkedFood[L.id]=pick.dataset.pickfood;renderLists();return;}
+    if(t.closest("[data-clearlink]")){delete linkedFood[L.id];renderLists();return;}
+    if(t.hasAttribute("data-fold")){foldedLists.has(L.id)?foldedLists.delete(L.id):foldedLists.add(L.id);renderLists();return;}
+    if(t.dataset.deltodo!==undefined&&t.dataset.deltodo!==""){L.items.splice(+t.dataset.deltodo,1);save();renderLists();return;}
+    if(t.hasAttribute("data-additem")){
+      const inp=listCard.querySelector("[data-newitem]");
+      const foodId=linkedFood[L.id]||null;
+      let txt=(inp.value||draftText[L.id]||"").trim();
+      if(!txt&&foodId){const f=allFood().find(x=>x.id===foodId);txt=f?"Try: "+f.name:"";}
+      if(txt){L.items.push({t:txt,done:false,...(foodId?{foodId}:{})});inp.value="";delete linkedFood[L.id];delete draftText[L.id];save();renderLists();}
+      return;
+    }
+    if(t.hasAttribute("data-dellist")){if(confirm(`Delete "${L.title}" and its ${L.items.length} items?`)){S.lists=S.lists.filter(x=>x.id!==L.id);save();renderLists();}return;}
+  }
+});
+document.body.addEventListener("change",e=>{
+  const t=e.target;
+  const listCardC=t.closest("[data-list]");
+  if(listCardC){
+    const L=S.lists.find(x=>x.id===listCardC.dataset.list);
+    if(t.dataset.todo!==undefined&&t.dataset.todo!==""){L.items[+t.dataset.todo].done=t.checked;save();renderLists();return;}
+    if(t.hasAttribute("data-listtitle")){L.title=t.value;save();return;}
+  }
+  const kidCard=t.closest("[data-kid]");
+  if(kidCard){
+    const k=S.kids.find(x=>x.id===kidCard.dataset.kid);
+    if(t.dataset.edit==="name"){k.name=t.value;save();renderKids();renderRides();return;}
+    if(t.dataset.edit==="height"){k.heightIn=t.value;save();renderRides();return;}
+  }
+  const dayCard=t.closest("[data-day]");
+  if(dayCard){
+    const d=S.days.find(x=>x.id===dayCard.dataset.day);
+    if(t.dataset.daytodo){
+      const [lid,i]=t.dataset.daytodo.split(":");
+      const L=S.lists.find(x=>x.id===lid);
+      if(L&&L.items[+i]){L.items[+i].done=t.checked;save();renderDays();renderLists();}
+      return;
+    }
+    if(t.dataset.timeidx!==undefined&&t.dataset.timeidx!==""){d.items[+t.dataset.timeidx].time=t.value;save();renderDays();return;}
+    if(t.dataset.edit==="label"){d.label=t.value;save();return;}
+    if(t.dataset.edit==="park"){d.park=t.value;save();return;}
+  }
+});
+document.body.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&e.target.matches("[data-newitem],[data-noteinput]")){
+    const btn=e.target.parentElement.querySelector("button");btn&&btn.click();
+  }
+});
+
+/* ============================================================
+   PWA registration (no-op inside preview environments)
+   ============================================================ */
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  fetch("sw.js",{method:"HEAD"}).then(r=>{if(r.ok)navigator.serviceWorker.register("sw.js");}).catch(()=>{});
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(async function init(){
+  let loaded=null;
+  try{ loaded=await store.load(); }catch(e){ loaded=null; }
+  try{
+  if(loaded){
+    S={...S,...loaded};
+    if(!S.lists||!S.lists.length){
+      S.lists=loaded.todos
+        ?[{id:"l-plan",title:"Before you go",items:loaded.todos.plan||[]},{id:"l-pack",title:"Packing",items:loaded.todos.pack||[]}]
+        :S.lists;
+    }
+    delete S.todos;
+  }
+  }catch(e){ console.warn("Saved data couldn't be read — starting fresh.",e); }
+  renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();
+})();
+</script>
+</body>
+</html>

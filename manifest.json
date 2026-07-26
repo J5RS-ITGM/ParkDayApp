@@ -1,0 +1,15 @@
+{
+  "name": "Park Day — Disney Trip Planner",
+  "short_name": "Park Day",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#232a5c",
+  "theme_color": "#232a5c",
+  "description": "Family Disney trip planner: rides with height checks, allergy-aware dining, day plans, and packing lists.",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
