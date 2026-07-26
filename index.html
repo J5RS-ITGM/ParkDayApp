@@ -48,18 +48,31 @@ header{
 }
 header .stars{position:absolute;inset:0;pointer-events:none;opacity:.7}
 header .stars i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.5}
-header h1{font-size:1.35rem;font-weight:600;letter-spacing:.3px;position:relative}
+header .hwrap{position:relative}
+header .hrow{display:flex;align-items:center;gap:10px}
+header h1{flex:1;min-width:0;font-size:1.35rem;font-weight:600;letter-spacing:.3px;position:relative}
 header h1 input{
   font:inherit;color:inherit;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.35);
   width:100%;max-width:320px;padding:2px 0;outline:none;
 }
-.countdown{position:relative;margin-top:6px;font-size:.9rem;color:#cdd4ff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.countdown{position:relative;margin-top:8px;font-size:.9rem;color:#cdd4ff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .countdown b{color:var(--gold);font-family:'Fredoka';font-weight:600;font-size:1.05rem}
 .countdown input[type=date]{
   background:rgba(255,255,255,.12);border:none;border-radius:8px;color:#fff;
   padding:4px 8px;font-family:inherit;font-size:.85rem;
 }
-.saveState{position:absolute;top:calc(12px + env(safe-area-inset-top));right:14px;font-size:.7rem;color:#aab4ee;background:rgba(255,255,255,.1);padding:3px 8px;border-radius:99px}
+.saveState{flex:0 0 auto;font-size:.7rem;color:#aab4ee;background:rgba(255,255,255,.1);padding:3px 10px;border-radius:99px;white-space:nowrap}
+#installBtn{
+  flex:0 0 auto;margin-left:auto;border:none;cursor:pointer;
+  font-family:'Fredoka';font-weight:500;font-size:.8rem;
+  background:var(--gold);color:#4a3300;border-radius:99px;padding:6px 12px;min-height:32px;
+}
+#installTip{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
+#installTip.open{display:flex}
+.tipBox{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);max-width:340px;width:100%;padding:20px;text-align:center}
+.tipBox h3{font-family:'Fredoka';font-weight:600;font-size:1.15rem;margin-bottom:8px}
+.tipBox p{font-size:.9rem;line-height:1.55;color:#5a5f80;margin-bottom:14px}
+.tipBox .btn{width:100%}
 
 /* ---------- tabs ---------- */
 nav{
@@ -269,15 +282,25 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
 <header>
   <div class="stars" id="stars"></div>
   <div class="hwrap">
-  <span class="saveState" id="saveState">saved</span>
-  <span class="saveState" style="right:auto;left:14px;top:auto;bottom:8px;opacity:.7">v4.0 — family sync</span>
-  <h1><input id="tripName" value="Our Disney Trip" aria-label="Trip name"></h1>
-  <div class="countdown">
-    <span id="cdText"><b id="cdDays">—</b> days to go</span>
-    <input type="date" id="tripDate" aria-label="Trip start date">
-  </div>
+    <div class="hrow">
+      <h1><input id="tripName" value="Our Disney Trip" aria-label="Trip name"></h1>
+      <span class="saveState" id="saveState">saved</span>
+    </div>
+    <div class="countdown">
+      <span id="cdText"><b id="cdDays">—</b> days to go</span>
+      <input type="date" id="tripDate" aria-label="Trip start date">
+      <button id="installBtn" hidden>⬇ Install app</button>
+    </div>
   </div>
 </header>
+
+<div id="installTip" role="dialog" aria-label="How to install">
+  <div class="tipBox">
+    <h3>Install Park Day 🏰</h3>
+    <p id="tipSteps"></p>
+    <button class="btn gold" id="tipClose">Got it</button>
+  </div>
+</div>
 
 <main>
   <!-- ============ PLAN ============ -->
@@ -327,7 +350,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit">Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v4.1</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -373,12 +396,50 @@ async function gateTry(){
   }
 }
 document.addEventListener("DOMContentLoaded", ()=>{
-  if(gateRemembered()){ document.body.classList.remove("locked"); return; }
-  const pw = document.getElementById("gatePw");
-  document.getElementById("gateGo").addEventListener("click", gateTry);
-  pw.addEventListener("keydown", e=>{ if(e.key==="Enter") gateTry(); });
-  setTimeout(()=>pw.focus(), 150);
+  if(gateRemembered()){ document.body.classList.remove("locked"); }
+  else{
+    const pw = document.getElementById("gatePw");
+    document.getElementById("gateGo").addEventListener("click", gateTry);
+    pw.addEventListener("keydown", e=>{ if(e.key==="Enter") gateTry(); });
+    setTimeout(()=>pw.focus(), 150);
+  }
+  initInstall();
 });
+
+/* ============================================================
+   INSTALL BUTTON — Android/desktop use the native prompt,
+   iOS gets step-by-step instructions (Apple offers no API)
+   ============================================================ */
+let deferredInstall=null;
+function isStandalone(){ return matchMedia("(display-mode: standalone)").matches || navigator.standalone===true; }
+function initInstall(){
+  const btn=document.getElementById("installBtn");
+  if(!btn || isStandalone()) return;              // already installed → no button
+  btn.hidden=false;
+  window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferredInstall=e; });
+  window.addEventListener("appinstalled", ()=>{ btn.hidden=true; });
+  btn.addEventListener("click", async ()=>{
+    if(deferredInstall){
+      deferredInstall.prompt();
+      const {outcome}=await deferredInstall.userChoice;
+      if(outcome==="accepted") btn.hidden=true;
+      deferredInstall=null;
+      return;
+    }
+    const ua=navigator.userAgent;
+    const steps=document.getElementById("tipSteps");
+    if(/iphone|ipad|ipod/i.test(ua)){
+      steps.innerHTML="1. Tap the <b>Share</b> button <span style='font-size:1.1em'>⬆️</span> at the bottom of Safari<br>2. Scroll down and tap <b>Add to Home Screen</b><br>3. Tap <b>Add</b> — look for the castle icon!";
+    }else if(/android/i.test(ua)){
+      steps.innerHTML="Tap the <b>⋮ menu</b> in Chrome, then <b>Install app</b> (or <b>Add to Home screen</b>).";
+    }else{
+      steps.innerHTML="Look for the <b>install icon</b> at the right end of the address bar (a screen with a ⬇ arrow), or open the browser menu and choose <b>Install Park Day</b>.";
+    }
+    document.getElementById("installTip").classList.add("open");
+  });
+  document.getElementById("tipClose").addEventListener("click", ()=>document.getElementById("installTip").classList.remove("open"));
+  document.getElementById("installTip").addEventListener("click", e=>{ if(e.target.id==="installTip") e.target.classList.remove("open"); });
+}
 
 /* ============================================================
    DATA — Walt Disney World rides (height reqs in inches) & dining
