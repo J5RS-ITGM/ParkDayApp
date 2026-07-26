@@ -91,7 +91,9 @@ header h1 input{
 .mapBox{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);width:100%;max-width:560px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh}
 .mapHead{display:flex;align-items:center;justify-content:space-between;padding:10px 12px}
 .mapHead h3{font-size:1rem;font-weight:600}
-#mapCanvas{height:min(62vh,520px);width:100%}
+#mapCanvas{height:min(56vh,480px);width:100%}
+#mapSearchRes{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+#mapSearchRes button{border:none;background:#f6f8fd;border-radius:8px;padding:8px 10px;text-align:left;font-family:'Nunito';font-size:.8rem;font-weight:700;color:var(--ink);cursor:pointer}
 .pinBadge{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}
 .pinBadge span{transform:rotate(45deg);font-size:.9rem}
 #alertsModal{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
@@ -175,6 +177,7 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .meta span{background:#eef1f9;border-radius:6px;padding:3px 8px}
 .meta .wait{background:#fff4d6;color:#8a6400}
 .meta .htReq{background:#e9e4f5;color:#5a4390}
+.htEdit{border:none;cursor:pointer;font:inherit;font-size:.72rem;font-weight:800;border-radius:8px;padding:3px 8px}
 
 /* signature: the height gate — who in the family clears the bar */
 .gate{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -222,6 +225,8 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .planItem:last-child{border-bottom:none}
 .piMain{display:flex;align-items:center;gap:10px}
 .planItem .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.dayMv{border:none;background:#f2f4fb;color:#9aa0bd;border-radius:8px;width:30px;height:30px;font-size:.72rem;cursor:pointer;line-height:1}
+.dayMv.rm{color:#c98a9c}
 .numBadge{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-family:'Fredoka';font-weight:600;font-size:.75rem}
 .todo .txt{line-height:1.45}
 .piBody{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -411,7 +416,8 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
 <div id="mapModal" role="dialog" aria-label="Day map">
   <div class="mapBox">
     <div class="mapHead"><h3 id="mapTitle">🗺 Day map</h3><span style="display:flex;gap:6px"><button class="btn gold small" id="mapPickUse" style="display:none">✓ Use pin</button><button class="btn ghost small" id="mapClose">✕ Close</button></span></div>
-    <div id="mapCanvas"></div>
+    <div id="mapSearchRow" style="display:none;padding:0 12px 8px"><div style="display:flex;gap:6px"><input type="text" id="mapSearch" placeholder="Search a spot… e.g. Terra Treats"><button class="btn ghost small" id="mapSearchGo">🔎</button></div><div id="mapSearchRes"></div></div>
+<div id="mapCanvas"></div>
     <div id="mapUnpinned" class="hint" style="padding:8px 12px"></div>
   </div>
 </div>
@@ -477,7 +483,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.6</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.7</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -641,6 +647,9 @@ const FOOD = [
  {id:"f-sci",park:"HS",name:"Sci-Fi Dine-In Theater",type:"Table service",notes:"Eat in a 'car' at a drive-in movie",flags:["Dairy","Gluten/Wheat"]},
  {id:"f-woody",park:"HS",name:"Woody's Lunch Box",type:"Quick service · Mobile Order",notes:"Toy Story Land; grilled cheese & totchos",flags:["Dairy","Gluten/Wheat","Egg"]},
  {id:"f-docking",park:"HS",name:"Docking Bay 7",type:"Quick service · Mobile Order",notes:"Galaxy's Edge; best QS in the park",flags:["Soy","Sesame"]},
+ {id:"f-terra",park:"AK",name:"Terra Treats",type:"Snack kiosk · Allergy-friendly",notes:"Discovery Island. Allergy-friendly snacks, cookie-dough brownie ice cream sandwich, pizza. ~10:30 AM–6 PM",flags:[],lat:28.3580125,lon:-81.5915609},
+ {id:"f-anandapur",park:"AK",name:"Anandapur Ice Cream Truck",type:"Dessert cart",notes:"Asia. Soft-serve & ice cream sandwiches. ~10:30 AM–7 PM",flags:["Milk/Dairy"],lat:28.3586092,lon:-81.5879325},
+ {id:"f-caravan",park:"AK",name:"Caravan Road",type:"Snack stand",notes:"Between Africa & Asia. Kakigori shaved ice — great on hot days. ~10:30 AM–5 PM",flags:null,lat:28.3586692,lon:-81.5906142},
  {id:"f-tiffins",park:"AK",name:"Tiffins",type:"Table service",notes:"Signature dining; excellent chef allergy support",flags:["Shellfish","Fish","Tree nut"]},
  {id:"f-satuli",park:"AK",name:"Satu'li Canteen",type:"Quick service · Mobile Order",notes:"Pandora bowls; very allergy-flexible",flags:["Soy"]},
  {id:"f-flame",park:"AK",name:"Flame Tree Barbecue",type:"Quick service · Mobile Order",notes:"Ribs with a view",flags:["Gluten/Wheat","Soy"]},
@@ -730,9 +739,11 @@ let S={
   extraRides:[],           // synced from ThemeParks.wiki, ht:-1 = verify in park
   extraFood:[],            // synced restaurants, flags:null = no allergen data
   geo:{},                  // normalized name -> [lat,lon] from ThemeParks.wiki
+  htOv:{},                 // ride id -> family-entered height override (inches; 0 = any height)
   lastSync:""
 };
 const allRides=()=>RIDES.concat(S.extraRides||[]);
+const effHt=r=>(S.htOv&&S.htOv[r.id]!=null)?S.htOv[r.id]:r.ht;
 const allFood=()=>FOOD.concat(S.extraFood||[]).concat(S.customFood||[]);
 const uid=()=>Math.random().toString(36).slice(2,9);
 
@@ -754,7 +765,7 @@ function ensureSyncFields(st){
 const entJson=e=>{const {_ts,...rest}=e; return JSON.stringify(rest);};
 function buildSnap(){
   snap={meta:JSON.stringify([S.tripName,S.tripDate]),
-        aux:JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync,S.geo])};
+        aux:JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync,S.geo,S.htOv])};
   COLLS.forEach(c=>{snap[c]={}; (S[c]||[]).forEach(e=>{snap[c][e.id]=entJson(e);});});
 }
 function stampChanges(){
@@ -766,7 +777,7 @@ function stampChanges(){
     Object.keys(snap[c]).forEach(id=>{ if(!seen[id]) S.tomb[c][id]=now; });
   });
   if(snap.meta!==JSON.stringify([S.tripName,S.tripDate])) S._metaTs=now;
-  if(snap.aux!==JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync,S.geo])) S._auxTs=now;
+  if(snap.aux!==JSON.stringify([S.waits,S.extraRides,S.extraFood,S.lastSync,S.geo,S.htOv])) S._auxTs=now;
   buildSnap();
 }
 /* merge remote into S; returns {localChanged, needPush} */
@@ -775,7 +786,7 @@ function mergeRemote(remote){
   ensureSyncFields(remote); ensureSyncFields(S);
   const before=JSON.stringify(S);
   if((remote._metaTs||0)>(S._metaTs||0)){S.tripName=remote.tripName;S.tripDate=remote.tripDate;S._metaTs=remote._metaTs;}
-  if((remote._auxTs||0)>(S._auxTs||0)){S.waits=remote.waits||{};S.extraRides=remote.extraRides||[];S.extraFood=remote.extraFood||[];S.lastSync=remote.lastSync||"";S.geo=remote.geo||S.geo||{};S._auxTs=remote._auxTs;}
+  if((remote._auxTs||0)>(S._auxTs||0)){S.waits=remote.waits||{};S.extraRides=remote.extraRides||[];S.extraFood=remote.extraFood||[];S.lastSync=remote.lastSync||"";S.geo=remote.geo||S.geo||{};S.htOv=remote.htOv||S.htOv||{};S._auxTs=remote._auxTs;}
   COLLS.forEach(c=>{
     const L={},R={};
     (S[c]||[]).forEach(e=>L[e.id]=e); (remote[c]||[]).forEach(e=>R[e.id]=e);
@@ -990,6 +1001,7 @@ function saveEditItem(){
    DAY MAP — Leaflet + OpenStreetMap, pins from ThemeParks.wiki geo
    ============================================================ */
 const PARK_CENTER={MK:[28.4177,-81.5812],EP:[28.3747,-81.5494],HS:[28.3575,-81.5583],AK:[28.3553,-81.5901]};
+const PARK_BOX={MK:[-81.593,28.412,-81.570,28.424],EP:[-81.556,28.366,-81.542,28.378],HS:[-81.565,28.352,-81.552,28.363],AK:[-81.603,28.351,-81.583,28.368]};
 let leafletReady=null, mapObj=null;
 function loadLeaflet(){
   if(leafletReady) return leafletReady;
@@ -1017,6 +1029,7 @@ async function openDayMap(day){
   catch(e){ alert("The map needs an internet connection to load the first time — try again when you have signal."); return; }
   document.getElementById("mapTitle").textContent=`🗺 ${day.label} — ${PARKS[day.park].name}`;
   document.getElementById("mapPickUse").style.display="none";
+  document.getElementById("mapSearchRow").style.display="none";
   document.getElementById("mapModal").classList.add("open");
   if(mapObj){ mapObj.remove(); mapObj=null; }
   mapObj=L.map("mapCanvas",{zoomControl:true}).setView(PARK_CENTER[day.park],16);
@@ -1067,6 +1080,10 @@ async function openPinPicker(park){
   document.getElementById("mapTitle").textContent="📍 Tap the map to drop your pin";
   const useBtn=document.getElementById("mapPickUse");
   useBtn.style.display="inline-block";
+  document.getElementById("mapSearchRow").style.display="block";
+  document.getElementById("mapSearchRes").innerHTML="";
+  document.getElementById("mapSearch").value=document.getElementById("cfName").value||"";
+  window.__pickPark=park;
   document.getElementById("mapUnpinned").innerHTML="Tap where the spot is. Drag to look around, tap ✓ Use pin when it's right.";
   document.getElementById("mapModal").classList.add("open");
   if(mapObj){ mapObj.remove(); mapObj=null; }
@@ -1082,6 +1099,22 @@ async function openPinPicker(park){
   if(pendingPin) place({lat:pendingPin[0],lng:pendingPin[1]});
   mapObj.on("click",e=>place(e.latlng));
   setTimeout(()=>mapObj.invalidateSize(),120);
+}
+async function mapPlaceSearch(){
+  const q=document.getElementById("mapSearch").value.trim();
+  const res=document.getElementById("mapSearchRes");
+  if(!q){res.innerHTML="";return;}
+  res.innerHTML='<span class="hint">Searching…</span>';
+  try{
+    const box=PARK_BOX[window.__pickPark||"MK"];
+    const url="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&bounded=1"
+      +"&viewbox="+box.join(",")+"&q="+encodeURIComponent(q);
+    const r=await fetch(url,{headers:{"Accept":"application/json"}});
+    const j=await r.json();
+    res.innerHTML=j.length
+      ? j.map(x=>`<button data-searchpick="${x.lat},${x.lon}">📍 ${esc(x.display_name.split(",").slice(0,2).join(","))}</button>`).join("")
+      : '<span class="hint">No match inside this park — tap the map to place the pin by hand.</span>';
+  }catch(e){ res.innerHTML='<span class="hint">Search needs internet — tap the map to place the pin by hand.</span>'; }
 }
 function renderAlertsPanel(){
   const el=document.getElementById("alertsList");
@@ -1194,6 +1227,7 @@ function pillbar(elId,cur,onpick){
 }
 function kidDotsHTML(ride,key,open){
   if(!S.kids.length) return "";
+  ride={...ride,ht:effHt(ride)};
   if(ride.ht===-1) return `<button class="kidDots" data-expand="${key}" aria-expanded="${open}" aria-label="Height not on file"><span class="kd unk">?</span><span class="kdHint">check sign</span></button>`;
   const dots=S.kids.map(k=>{
     const h=Number(k.heightIn)||0;
@@ -1204,6 +1238,7 @@ function kidDotsHTML(ride,key,open){
   return `<button class="kidDots" data-expand="${key}" aria-expanded="${open}" aria-label="Who can ride">${dots}<span class="kdHint">${oks}/${S.kids.length} can ride ${open?"▴":"▾"}</span></button>`;
 }
 function gateHTML(ride){
+  ride={...ride,ht:effHt(ride)};
   if(ride.ht===-1) return `<div class="hint">Height requirement not on file — check the sign at the entrance or My Disney Experience.</div>`;
   if(!S.kids.length) return `<div class="hint">Add kids in the Family tab to see who can ride.</div>`;
   return `<div class="gate">`+S.kids.map(k=>{
@@ -1226,7 +1261,10 @@ function renderRides(){
    <div class="card ride">
      <div class="top"><h3>${esc(r.name)}</h3><span class="parkTag t-${r.park}">${PARKS[r.park].short}</span></div>
      <div class="meta">
-       ${r.ht>0?`<span class="htReq">📏 ${r.ht}" min</span>`:r.ht===-1?`<span class="htReq">📏 Check sign</span>`:`<span style="background:#e2f5ea;color:var(--green)">Any height</span>`}
+       ${(()=>{const h=effHt(r);const ov=S.htOv&&S.htOv[r.id]!=null;
+         return h>0?`<button class="htReq htEdit" data-htedit="${r.id}">📏 ${h}" min ✎${ov?"*":""}</button>`
+           :h===-1?`<button class="htReq htEdit" data-htedit="${r.id}">📏 Check sign ✎</button>`
+           :`<button class="htEdit" data-htedit="${r.id}" style="background:#e2f5ea;color:var(--green)">Any height ✎${ov?"*":""}</button>`;})()}
        <span>${esc(r.tag)}</span>${waitFor(r.name)}
      </div>
      ${gateHTML(r)}
@@ -1302,7 +1340,15 @@ function renderDays(){
          ${Object.entries(PARKS).map(([k,v])=>`<option value="${k}" ${d.park===k?"selected":""}>${v.name}</option>`).join("")}
        </select>
      </h3>
-     ${d.park?`<button class="btn ghost small" data-daymap="${d.id}" style="margin-top:6px">🗺 Map this day</button>`:""}
+     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+       ${d.park?`<button class="btn ghost small" data-daymap="${d.id}">🗺 Map</button>`:""}
+       ${d.items.filter(x=>x.kind!=="note").length>1?`<button class="btn ghost small" data-splitday="${d.id}">✂ Split day</button>`:""}
+       <span class="mv" style="margin-left:auto;display:flex;gap:2px">
+         <button class="dayMv" data-moveday="up:${d.id}" aria-label="Move day earlier">▲</button>
+         <button class="dayMv" data-moveday="down:${d.id}" aria-label="Move day later">▼</button>
+         <button class="dayMv rm" data-delday="${d.id}" aria-label="Delete day">✕</button>
+       </span>
+     </div>
      ${(()=>{const lbl=dayDateLabel(di);
         if(lbl) return `<div class="dayDate">📅 ${lbl}</div>`;
         if(di===0) return `<div class="dayDate pick">📅 First park day: <input type="date" data-firstdate value=""></div>`;
@@ -1350,7 +1396,7 @@ function renderDays(){
             <span class="from">${esc(h.L.title)}</span>
           </div>`).join("")+`</div>`;})()}
      <div class="addRow"><input type="text" placeholder="Add a note (parade, break, hotel…)" data-noteinput><button class="btn small" data-addnote>Add</button></div>
-     <div style="margin-top:8px"><button class="btn danger small" data-delday>Delete day</button></div>
+
    </div>`).join("");
 }
 let dayPickCb=null;
@@ -1617,8 +1663,58 @@ document.body.addEventListener("click",e=>{
   if(bell){toggleWatch(bell.dataset.bell);return;}
   if(t.id==="alertsBtn"){openAlerts();return;}
   if(t.dataset.daymap){const day=S.days.find(x=>x.id===t.dataset.daymap);if(day)openDayMap(day);return;}
+  if(t.dataset.moveday){
+    const [dir,id]=t.dataset.moveday.split(":");
+    const i=S.days.findIndex(x=>x.id===id), j=dir==="up"?i-1:i+1;
+    if(i>=0&&j>=0&&j<S.days.length){[S.days[i],S.days[j]]=[S.days[j],S.days[i]];save();renderDays();}
+    return;
+  }
+  if(t.dataset.splitday){
+    const day=S.days.find(x=>x.id===t.dataset.splitday); if(!day) return;
+    const stops=day.items.filter(x=>x.kind!=="note").length;
+    const raw=prompt(`Split "${day.label}" after which stop?\n(Stops 1–${stops}; everything after moves to the new day.)`, Math.ceil(stops/2));
+    if(raw===null) return;
+    const at=parseInt(raw,10);
+    if(!at||at<1||at>stops-1){alert("Pick a stop number between 1 and "+(stops-1)+".");return;}
+    // find array index where stop count passes `at`
+    let seen=0, cut=day.items.length;
+    for(let ii=0;ii<day.items.length;ii++){
+      if(day.items[ii].kind!=="note") seen++;
+      if(seen===at){cut=ii+1;break;}
+    }
+    const tail=day.items.slice(cut);
+    day.items=day.items.slice(0,cut);
+    const idx=S.days.indexOf(day);
+    S.days.splice(idx+1,0,{id:uid(),label:day.label+" pt 2",park:day.park,items:tail});
+    save();renderDays();
+    return;
+  }
+  if(t.dataset.htedit){
+    const r=allRides().find(x=>x.id===t.dataset.htedit); if(!r) return;
+    const cur=effHt(r);
+    const raw=prompt(`Height requirement for "${r.name}" in inches?\n(0 = any height. Check the sign at the ride to be sure.)`, cur>0?cur:"");
+    if(raw===null) return;
+    const h=parseInt(raw,10);
+    if(raw.trim()==="0"||h===0){S.htOv[r.id]=0;}
+    else if(h>=20&&h<=70){S.htOv[r.id]=h;}
+    else{alert("Enter inches between 20 and 70, or 0 for any height.");return;}
+    save();renderRides();renderDays();
+    return;
+  }
   if(t.id==="mapClose"||t.id==="mapModal"){document.getElementById("mapModal").classList.remove("open");return;}
   if(t.id==="cfPin"){openPinPicker(document.getElementById("cfPark").value);return;}
+  if(t.id==="mapSearchGo"){mapPlaceSearch();return;}
+  if(t.dataset.searchpick){
+    const [la,lo]=t.dataset.searchpick.split(",").map(Number);
+    if(mapObj){mapObj.setView([la,lo],18);}
+    if(typeof mapObj?.fire==="function"){}
+    // place via same path as a map tap
+    pendingPin=[la,lo];
+    if(pickMarker){pickMarker.setLatLng({lat:la,lng:lo});}
+    else if(window.L&&mapObj){const icon=L.divIcon({className:"",html:`<div class="pinBadge" style="background:#ef476f"><span>📍</span></div>`,iconSize:[28,28],iconAnchor:[14,28]});pickMarker=L.marker([la,lo],{icon,draggable:true}).addTo(mapObj);}
+    document.getElementById("mapSearchRes").innerHTML='<span class="hint">📍 Pin placed — drag to fine-tune, then ✓ Use pin.</span>';
+    return;
+  }
   if(t.id==="mapPickUse"){
     if(pickMarker){const ll=pickMarker.getLatLng();pendingPin=[ll.lat,ll.lng];}
     document.getElementById("mapModal").classList.remove("open");
@@ -1770,6 +1866,7 @@ document.body.addEventListener("change",e=>{
   }
 });
 document.body.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&e.target.id==="mapSearch"){e.preventDefault();mapPlaceSearch();return;}
   // Enter adds only in single-line inputs; in the list textarea Enter just makes a new line
   if(e.key==="Enter"&&e.target.matches("[data-noteinput]")){
     e.preventDefault();

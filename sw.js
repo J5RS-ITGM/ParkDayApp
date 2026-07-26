@@ -1,5 +1,5 @@
 // Park Day — offline-first service worker
-const CACHE = "park-day-v17";
+const CACHE = "park-day-v18";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg", "./icon-512.png", "./apple-touch-icon.png"];
 
 // ---- Web Push: ride wait alerts ----
