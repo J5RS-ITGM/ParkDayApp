@@ -10,3 +10,8 @@ services:
     environment:
       # SHA-256 hex of the family password (matches GATE_HASH in index.html)
       PARKDAY_KEY: "d5dd32976cdfcd59ed420a6aaf50720c0a534d934f925f58b43ce417c5af9ad3"
+      # Web Push keys — generate once with:  docker compose run --rm parkday-sync python gen_vapid.py
+      # Paste values below (and into 1Password), then:  docker compose up -d
+      VAPID_PUBLIC_KEY: ""
+      VAPID_PRIVATE_KEY: ""
+      VAPID_SUB: "mailto:ejones@j5rescue.com"

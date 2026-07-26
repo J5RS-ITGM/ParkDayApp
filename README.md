@@ -16,6 +16,13 @@ docker compose up -d --build        # sync backend
 ```
 nginx location block: see `sync-server/nginx-snippet.txt` (CloudPanel vhost editor).
 
+## Push alerts (v5.0)
+Bell (🔔) on ride cards: pick a wait threshold, get one push when it drops
+below (max one per ride per hour). Server polls ThemeParks.wiki every 3 min.
+Setup: generate VAPID keys (docker compose run --rm parkday-sync python gen_vapid.py),
+paste into docker-compose.yml, docker compose up -d --build. iOS needs the
+installed app (iOS 16.4+); notifications permission prompted on first bell.
+
 ## Password
 Client gate and server share the same secret: SHA-256 of the family password.
 - Client: `GATE_HASH` in index.html

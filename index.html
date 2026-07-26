@@ -110,6 +110,7 @@ section.tab.active{display:block;animation:fadein .18s ease}
 .btn.ghost{background:#eef1f9;color:var(--night)}
 .btn.small{min-height:36px;padding:6px 12px;font-size:.85rem}
 .btn.danger{background:#fde8ee;color:var(--coral)}
+.btn.bellOn{background:var(--gold);color:#4a3300}
 .btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 input[type=search]{font-family:'Nunito';font-size:.95rem;border:1.5px solid #dde3f0;border-radius:12px;padding:10px 14px;width:100%;background:#fff;color:var(--ink);-webkit-appearance:none}
 input[type=search]:focus{outline:none;border-color:var(--night)}
@@ -369,7 +370,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v4.6</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.0</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -691,8 +692,8 @@ function mergeRemote(remote){
   const after=JSON.stringify(S);
   return {localChanged:after!==before, needPush:after!==JSON.stringify(remote)};
 }
-async function apiFetch(method,body){
-  const r=await fetch(API_URL,{method,headers:{"Content-Type":"application/json","X-Park-Key":authKey()},body:body?JSON.stringify(body):undefined});
+async function apiFetch(method,body,path){
+  const r=await fetch("api/"+(path||"state"),{method,headers:{"Content-Type":"application/json","X-Park-Key":authKey()},body:body?JSON.stringify(body):undefined});
   if(r.status===401){setSaved("sync: wrong password");throw new Error("auth");}
   return r;
 }
@@ -729,6 +730,75 @@ function startSync(){
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") pullSync(); });
 }
 function renderAll(){renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();}
+
+/* ============================================================
+   PUSH — ride wait alerts (🔔 on ride cards)
+   Watch a ride + threshold; the server polls waits and pushes
+   a notification when it drops below. One alert per hour max.
+   ============================================================ */
+let pushCfg=null, pushSub=null, watched={};   // ride name -> threshold
+function pushCapable(){
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+async function initPush(){
+  if(!pushCapable()) return;
+  try{
+    const r=await apiFetch("GET",null,"push/config");
+    if(!r.ok) return;
+    pushCfg=await r.json();
+    if(!pushCfg.enabled) return;
+    const reg=await navigator.serviceWorker.ready;
+    pushSub=await reg.pushManager.getSubscription();
+    if(pushSub) await loadWatches();
+    renderRides();
+  }catch(e){}
+}
+async function loadWatches(){
+  try{
+    const r=await fetch("api/push/watches?endpoint="+encodeURIComponent(pushSub.endpoint),
+      {headers:{"X-Park-Key":authKey()}});
+    if(!r.ok) return;
+    const j=await r.json();
+    watched={}; (j.watches||[]).forEach(w=>watched[w.ride]=w.threshold);
+  }catch(e){}
+}
+function urlB64ToU8(s){
+  const pad="=".repeat((4-s.length%4)%4);
+  const raw=atob((s+pad).replace(/-/g,"+").replace(/_/g,"/"));
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+async function ensureSubscribed(){
+  if(pushSub) return true;
+  if(Notification.permission==="denied"){
+    alert("Notifications are blocked for this app in your device settings. Enable them there, then try again.");
+    return false;
+  }
+  const perm=await Notification.requestPermission();
+  if(perm!=="granted") return false;
+  const reg=await navigator.serviceWorker.ready;
+  pushSub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToU8(pushCfg.publicKey)});
+  await apiFetch("POST",{subscription:pushSub.toJSON(),label:S.tripName||""},"push/subscribe");
+  return true;
+}
+async function toggleWatch(rideName){
+  if(!pushCfg||!pushCfg.enabled) return;
+  try{
+    if(watched[rideName]!==undefined){
+      await apiFetch("POST",{endpoint:pushSub.endpoint,ride:rideName},"push/unwatch");
+      delete watched[rideName];
+      renderRides();
+      return;
+    }
+    if(!(await ensureSubscribed())) return;
+    const raw=prompt(`Alert me when "${rideName}" drops below how many minutes?`,"40");
+    if(raw===null) return;
+    const th=parseInt(raw,10);
+    if(!th||th<5||th>240){alert("Pick a number of minutes between 5 and 240.");return;}
+    await apiFetch("POST",{endpoint:pushSub.endpoint,ride:rideName,threshold:th},"push/watch");
+    watched[rideName]=th;
+    renderRides();
+  }catch(e){ alert("Couldn't update the alert — check your connection and try again."); }
+}
 
 /* ============================================================
    WEATHER — Walt Disney World 7-day, via Open-Meteo (no key)
@@ -853,7 +923,13 @@ function renderRides(){
        <span>${esc(r.tag)}</span>${waitFor(r.name)}
      </div>
      ${gateHTML(r)}
-     <div class="rideActions"><button class="btn ghost small" data-addplan="ride:${r.id}">+ Add to a day</button></div>
+     <div class="rideActions"><button class="btn ghost small" data-addplan="ride:${r.id}">+ Add to a day</button>${
+       pushCfg&&pushCfg.enabled
+         ? (watched[r.name]!==undefined
+             ? `<button class="btn small bellOn" data-bell="${esc(r.name)}">🔔 &lt;${watched[r.name]}m</button>`
+             : `<button class="btn ghost small" data-bell="${esc(r.name)}">🔕 Alert</button>`)
+         : ""
+     }</div>
    </div>`).join("")||`<div class="empty">No rides match — try another word or tap ⇩ Sync all for the full roster.</div>`;
 }
 
@@ -1192,6 +1268,8 @@ document.getElementById("addList").onclick=()=>{
 
 document.body.addEventListener("click",e=>{
   const t=e.target;
+  const bell=t.closest("[data-bell]");
+  if(bell){toggleWatch(bell.dataset.bell);return;}
   // family chips / delete
   const kidCard=t.closest("[data-kid]");
   if(kidCard){
@@ -1326,6 +1404,7 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   ensureSyncFields(S); buildSnap(); startSync();
   loadWeather(); setInterval(loadWeather, 30*60*1000);
   startWaitsAutoRefresh();
+  initPush();
 })();
 </script>
 </body>
