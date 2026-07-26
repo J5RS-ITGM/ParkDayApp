@@ -69,6 +69,18 @@ header h1 input{
 }
 #installTip{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
 #installTip.open{display:flex}
+#dayPickModal{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
+#dayPickModal.open{display:flex}
+.dayPickRow{display:flex;align-items:center;gap:8px;width:100%;border:none;background:#f6f8fd;border-radius:10px;padding:11px 12px;margin-bottom:6px;cursor:pointer;font-family:'Nunito';text-align:left}
+.dayPickRow b{font-family:'Fredoka';font-weight:600;font-size:.92rem}
+.dayPickRow .dpDate{margin-left:auto;font-size:.72rem;font-weight:800;color:#7c81a1}
+.dayDate{font-size:.78rem;font-weight:800;color:var(--night);background:#f2f4fb;border-radius:8px;padding:5px 9px;margin-top:6px;display:inline-flex;align-items:center;gap:6px}
+.dayDate.dim{color:#a0a5c2}
+.dayDate.pick input[type=date]{font-size:.78rem;padding:2px 6px;width:auto;border-radius:6px}
+.listHead .mv{display:flex;gap:2px;margin-left:2px}
+.listHead .mv button{border:none;background:#eef1f9;color:#5a5f80;border-radius:6px;width:24px;height:22px;font-size:.6rem;cursor:pointer;line-height:1}
+.todo .iEdit,.todo .iUp{border:none;background:none;color:#c3c8de;cursor:pointer;font-size:.78rem;padding:4px 2px;flex:0 0 auto}
+.todo .iEdit:hover,.todo .iUp:hover{color:var(--night)}
 #alertsModal{display:none;position:fixed;inset:0;z-index:220;background:rgba(20,24,55,.72);align-items:center;justify-content:center;padding:24px}
 #alertsModal.open{display:flex}
 #alertsBtn{flex:0 0 auto;border:none;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;border-radius:99px;width:34px;height:34px;font-size:1rem;line-height:1}
@@ -326,6 +338,14 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   </div>
 </div>
 
+<div id="dayPickModal" role="dialog" aria-label="Add to which day">
+  <div class="tipBox">
+    <h3>Add to which day?</h3>
+    <div id="dayPickList"></div>
+    <button class="btn ghost" id="dayPickCancel" style="margin-top:12px;width:100%">Cancel</button>
+  </div>
+</div>
+
 <div id="alertsModal" role="dialog" aria-label="My ride alerts">
   <div class="tipBox">
     <h3>🔔 My ride alerts</h3>
@@ -387,7 +407,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v5.1</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v5.2</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -1027,17 +1047,30 @@ function fmtTime(t){ // "13:30" -> "1:30 PM"
   const ap=h>=12?"PM":"AM"; const hh=((h+11)%12)+1;
   return hh+":"+String(m).padStart(2,"0")+" "+ap;
 }
+function dayDate(di){
+  if(!S.tripDate) return null;
+  const d=new Date(S.tripDate+"T12:00:00"); d.setDate(d.getDate()+di);
+  return d;
+}
+function dayDateLabel(di){
+  const d=dayDate(di);
+  return d?d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}):null;
+}
 function renderDays(){
   const el=document.getElementById("daysList");
   document.getElementById("daysEmpty").style.display=S.days.length?"none":"block";
   el.innerHTML=S.days.map((d,di)=>`
    <div class="card dayCard" data-day="${d.id}">
-     <h3><input type="text" value="${esc(d.label)}" data-edit="label" style="max-width:150px;border:none;border-bottom:1px dashed #dde3f0;border-radius:0;padding:2px 0;font:inherit">
+     <h3><input type="text" value="${esc(d.label)}" data-edit="label" style="max-width:110px;border:none;border-bottom:1px dashed #dde3f0;border-radius:0;padding:2px 0;font:inherit">
        <select data-edit="park" style="width:auto;flex:1">
          <option value="">Pick a park…</option>
          ${Object.entries(PARKS).map(([k,v])=>`<option value="${k}" ${d.park===k?"selected":""}>${v.name}</option>`).join("")}
        </select>
      </h3>
+     ${(()=>{const lbl=dayDateLabel(di);
+        if(lbl) return `<div class="dayDate">📅 ${lbl}</div>`;
+        if(di===0) return `<div class="dayDate pick">📅 First park day: <input type="date" data-firstdate value=""></div>`;
+        return `<div class="dayDate dim">📅 Set the first day's date on Day 1</div>`;})()}
      ${d.items.length>1?`<div class="dayFilter">${[["all","All"],["ride","🎢 Rides"],["food","🍽 Food"],["note","📝 Notes"]].map(([k,n])=>`<button class="${(dayFilters[d.id]||"all")===k?"on":""}" data-dayfilter="${k}">${n}</button>`).join("")}</div>`:""}
      <div style="margin-top:8px">
        ${d.items.length?d.items.map((it,ii)=>{
@@ -1078,12 +1111,20 @@ function renderDays(){
      <div style="margin-top:8px"><button class="btn danger small" data-delday>Delete day</button></div>
    </div>`).join("");
 }
+let dayPickCb=null;
 function promptDay(cb){
   if(!S.days.length){alert("Add a park day first (Plan tab).");return;}
   if(S.days.length===1){cb(S.days[0]);return;}
-  const pick=prompt("Add to which day?\n"+S.days.map((d,i)=>`${i+1}. ${d.label}${d.park?" — "+PARKS[d.park].name:""}`).join("\n")+"\n\nEnter a number:");
-  const n=parseInt(pick,10);
-  if(n>=1&&n<=S.days.length) cb(S.days[n-1]);
+  dayPickCb=cb;
+  document.getElementById("dayPickList").innerHTML=S.days.map((d,di)=>{
+    const date=dayDateLabel(di);
+    return `<button class="dayPickRow" data-pickday="${d.id}">
+      <b>${esc(d.label)}</b>
+      <span class="parkTag t-${d.park||"all"}" style="${d.park?"":"background:#e7ebf5;color:#5a5f80"}">${d.park?PARKS[d.park].short:"no park"}</span>
+      ${date?`<span class="dpDate">${date}</span>`:""}
+    </button>`;
+  }).join("");
+  document.getElementById("dayPickModal").classList.add("open");
 }
 
 /* ============================================================
@@ -1121,6 +1162,7 @@ function renderLists(){
         <button class="fold" data-fold aria-expanded="${!folded}" aria-label="Collapse list">${folded?"▸":"▾"}</button>
         <input class="title" type="text" value="${esc(L.title)}" data-listtitle aria-label="List name">
         <span class="count">${done}/${tot}</span>
+        <span class="mv"><button data-movelist="-1" aria-label="Move list up">▲</button><button data-movelist="1" aria-label="Move list down">▼</button></span>
       </div>
       <div class="progress" role="progressbar" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
       ${folded?"":`
@@ -1129,6 +1171,8 @@ function renderLists(){
             <input type="checkbox" ${t.done?"checked":""} data-todo="${i}" aria-label="${esc(t.t)}">
             <span class="txt">${esc(t.t)}${(()=>{const f=t.foodId?allFood().find(x=>x.id===t.foodId):null;
               return f?`<br><span class="parkTag t-${f.park}" style="font-size:.6rem">${PARKS[f.park].short}</span> <span class="sub" style="font-size:.72rem;color:#8b90ad;font-weight:700">${esc(f.name)}${f.type&&f.type!=="Synced"?" · "+esc(f.type):""}</span>`:"";})()}</span>
+            <button class="iEdit" data-edittodo="${i}" aria-label="Edit item">✎</button>
+            ${i>0?`<button class="iUp" data-movetodo="${i}" aria-label="Move item up">▲</button>`:`<span class="iUp" style="visibility:hidden">▲</span>`}
             <button class="del" data-deltodo="${i}" aria-label="Delete">✕</button>
           </div>`).join("")||'<div class="hint" style="padding:8px 0">Empty — add the first item below.</div>'}</div>
         <div class="addRow"><input type="text" data-newitem value="${esc(draftText[L.id]||"")}" placeholder="Add an item…"><button class="btn small" data-additem>Add</button></div>
@@ -1299,7 +1343,10 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
   window.scrollTo({top:0});
 });
 document.getElementById("tripName").oninput=e=>{S.tripName=e.target.value;save();};
-document.getElementById("tripDate").onchange=e=>{S.tripDate=e.target.value;save();renderHeader();};
+document.getElementById("tripDate").onchange=e=>{S.tripDate=e.target.value;save();renderHeader();renderDays();};
+document.body.addEventListener("change",e=>{
+  if(e.target.matches("[data-firstdate]")&&e.target.value){S.tripDate=e.target.value;save();renderHeader();renderDays();}
+});
 document.getElementById("addKid").onclick=()=>{S.kids.push({id:uid(),name:"New kiddo",heightIn:"",allergies:[],locked:false});save();renderKids();renderRides();renderFood();};
 document.getElementById("addDay").onclick=()=>{S.days.push({id:uid(),label:"Day "+(S.days.length+1),park:"",items:[]});save();renderDays();};
 document.getElementById("liveBtn").onclick=()=>fetchWaits(false);
@@ -1323,6 +1370,14 @@ document.body.addEventListener("click",e=>{
   const bell=t.closest("[data-bell]");
   if(bell){toggleWatch(bell.dataset.bell);return;}
   if(t.id==="alertsBtn"){openAlerts();return;}
+  if(t.id==="dayPickCancel"||t.id==="dayPickModal"){document.getElementById("dayPickModal").classList.remove("open");dayPickCb=null;return;}
+  const dpick=t.closest("[data-pickday]");
+  if(dpick){
+    const day=S.days.find(x=>x.id===dpick.dataset.pickday);
+    document.getElementById("dayPickModal").classList.remove("open");
+    if(day&&dayPickCb){const cb=dayPickCb;dayPickCb=null;cb(day);}
+    return;
+  }
   if(t.id==="alertsClose"||t.id==="alertsModal"){document.getElementById("alertsModal").classList.remove("open");return;}
   if(t.dataset.alertrm){toggleWatch(t.dataset.alertrm).then(renderAlertsPanel);return;}
   const arow=t.closest("[data-alertrow]");
@@ -1392,6 +1447,22 @@ document.body.addEventListener("click",e=>{
     if(pick&&!pick.disabled){linkedFood[L.id]=pick.dataset.pickfood;renderLists();return;}
     if(t.closest("[data-clearlink]")){delete linkedFood[L.id];renderLists();return;}
     if(t.hasAttribute("data-fold")){foldedLists.has(L.id)?foldedLists.delete(L.id):foldedLists.add(L.id);renderLists();return;}
+    if(t.dataset.movelist){
+      const dir=+t.dataset.movelist, i=S.lists.indexOf(L), j=i+dir;
+      if(j>=0&&j<S.lists.length){[S.lists[i],S.lists[j]]=[S.lists[j],S.lists[i]];save();renderLists();}
+      return;
+    }
+    if(t.dataset.edittodo!==undefined&&t.dataset.edittodo!==""){
+      const it=L.items[+t.dataset.edittodo];
+      const txt=prompt("Edit item:", it.t);
+      if(txt!==null&&txt.trim()){it.t=txt.trim();save();renderLists();renderDays();}
+      return;
+    }
+    if(t.dataset.movetodo!==undefined&&t.dataset.movetodo!==""){
+      const i=+t.dataset.movetodo;
+      if(i>0){[L.items[i-1],L.items[i]]=[L.items[i],L.items[i-1]];save();renderLists();}
+      return;
+    }
     if(t.dataset.deltodo!==undefined&&t.dataset.deltodo!==""){L.items.splice(+t.dataset.deltodo,1);save();renderLists();return;}
     if(t.hasAttribute("data-additem")){
       const inp=listCard.querySelector("[data-newitem]");
