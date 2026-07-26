@@ -350,7 +350,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v4.1</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v4.3</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -1008,8 +1008,68 @@ function renderHeader(){
   const cd=document.getElementById("cdDays");
   if(S.tripDate){
     const days=Math.ceil((new Date(S.tripDate+"T00:00:00")-new Date())/86400000);
-    document.getElementById("cdText").innerHTML=days>0?`<b>${days}</b> days to go`:(days>-7?`<b>It's trip time! 🎉</b>`:`<b>Trip memories ✨</b>`);
+    document.getElementById("cdText").innerHTML=
+      days>3?`<b>${days}</b> days to go`
+      :days>1?`<b>${days}</b> days to go!! 🎆`
+      :days===1?`<b>1</b> day to go!! 🎆`
+      :(days>-7?`<b>It's trip time! 🎉</b>`:`<b>Trip memories ✨</b>`);
+    if(days<=3&&days>-7) startFireworks(); else stopFireworks();
   } else document.getElementById("cdText").innerHTML=`Set your trip date →`;
+}
+
+/* ============================================================
+   FIREWORKS — 5-second castle show, from 3 days out 🎆
+   Plays once per app open (sync refreshes won't restart it)
+   ============================================================ */
+let fwCanvas=null,fwCtx=null,fwParts=[],fwTimer=null,fwRAF=null,fwPlayed=false;
+const FW_COLORS=["#ffb703","#ef476f","#0aa6a0","#7b5ea7","#ffffff","#e8703a"];
+function startFireworks(){
+  if(fwTimer||fwPlayed) return;
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  fwPlayed=true;
+  fwCanvas=document.createElement("canvas");
+  fwCanvas.id="fwCanvas";
+  fwCanvas.style.cssText="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:120";
+  document.body.appendChild(fwCanvas);
+  fwCtx=fwCanvas.getContext("2d");
+  const fit=()=>{fwCanvas.width=innerWidth*devicePixelRatio;fwCanvas.height=innerHeight*devicePixelRatio;fwCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);};
+  fit(); addEventListener("resize",fit);
+  const burst=()=>{
+    if(document.visibilityState!=="visible") return;
+    const x=innerWidth*(0.12+Math.random()*0.76);
+    const y=innerHeight*(0.10+Math.random()*0.35);
+    const color=FW_COLORS[Math.floor(Math.random()*FW_COLORS.length)];
+    const n=44+Math.floor(Math.random()*20);
+    for(let i=0;i<n;i++){
+      const a=(Math.PI*2*i)/n + Math.random()*.2;
+      const v=3.2+Math.random()*3.8;
+      fwParts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,decay:.008+Math.random()*.008,color,r:2.6+Math.random()*2.4});
+    }
+  };
+  const tick=()=>{
+    fwCtx.clearRect(0,0,innerWidth,innerHeight);
+    fwParts=fwParts.filter(p=>p.life>0);
+    fwParts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.vx*=0.985; p.life-=p.decay;
+      fwCtx.globalAlpha=Math.max(p.life,0);
+      fwCtx.fillStyle=p.color;
+      fwCtx.beginPath(); fwCtx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2); fwCtx.fill();
+    });
+    fwCtx.globalAlpha=1;
+    if(!fwTimer&&fwParts.length===0){ fwCanvas&&fwCanvas.remove(); fwCanvas=null; fwRAF=null; return; }
+    fwRAF=requestAnimationFrame(tick);
+  };
+  burst(); setTimeout(burst,350);                 // opening volley
+  fwTimer=setInterval(burst,750);                 // big bursts through the show
+  setTimeout(()=>{ clearInterval(fwTimer); fwTimer=null; },5000);   // ~5s show, then let sparks fade out
+  fwRAF=requestAnimationFrame(tick);
+}
+function stopFireworks(){
+  fwPlayed=false;                                  // re-arm if the date moves back into range later
+  if(!fwTimer&&!fwCanvas) return;
+  clearInterval(fwTimer); fwTimer=null;
+  if(fwRAF){cancelAnimationFrame(fwRAF); fwRAF=null;}
+  fwParts=[]; fwCanvas&&fwCanvas.remove(); fwCanvas=null;
 }
 // twinkle stars in header
 (function(){const s=document.getElementById("stars");for(let i=0;i<26;i++){const d=document.createElement("i");d.style.left=Math.random()*100+"%";d.style.top=Math.random()*100+"%";d.style.opacity=(.2+Math.random()*.6);s.appendChild(d);}})();
