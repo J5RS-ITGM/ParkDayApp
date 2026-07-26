@@ -1,5 +1,5 @@
 // Park Day — offline-first service worker
-const CACHE = "park-day-v8";
+const CACHE = "park-day-v9";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
@@ -15,7 +15,7 @@ self.addEventListener("fetch", e => {
   // Family-sync API: never cache, network only (app handles offline itself)
   if (url.pathname.includes("/api/")) return;
   // Live wait times: network-first, fall back silently
-  if (url.hostname === "api.themeparks.wiki") {
+  if (url.hostname === "api.themeparks.wiki" || url.hostname === "api.open-meteo.com") {
     e.respondWith(fetch(e.request).catch(() => new Response("{}", { headers: { "Content-Type": "application/json" } })));
     return;
   }

@@ -166,6 +166,19 @@ label.f{display:block;font-size:.78rem;font-weight:800;color:#5a5f80;margin:10px
 .chip{font-size:.75rem;font-weight:800;background:#eef1f9;color:#5a5f80;border-radius:99px;padding:4px 10px;border:1.5px solid transparent;cursor:pointer}
 .chip.static{cursor:default;pointer-events:none}
 .lockStat{font-size:.75rem;font-weight:800;color:#7c81a1;background:#f2f4fb;border-radius:99px;padding:3px 10px}
+
+/* ---------- weather strip ---------- */
+#wxStrip{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-bottom:14px}
+.wxHead{font-family:'Fredoka';font-weight:600;font-size:.9rem;color:var(--night);margin-bottom:8px}
+.wxRow{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.wxRow::-webkit-scrollbar{display:none}
+.wxDay{flex:0 0 auto;min-width:74px;text-align:center;background:#f6f8fd;border:1.5px solid transparent;border-radius:12px;padding:8px 6px}
+.wxDay.trip{border-color:var(--gold);background:#fffaf0}
+.wxDay .d{font-size:.68rem;font-weight:800;color:#8b90ad;text-transform:uppercase;letter-spacing:.4px}
+.wxDay .e{font-size:1.5rem;line-height:1.4}
+.wxDay .t{font-size:.8rem;font-weight:800;color:var(--ink)}
+.wxDay .t small{color:#9aa0bd;font-weight:700}
+.wxDay .r{font-size:.68rem;font-weight:800;color:var(--teal);margin-top:2px}
 .chip.on{background:#fde8ee;color:var(--coral);border-color:#f7b8c9}
 
 /* ---------- plan / days ---------- */
@@ -307,6 +320,10 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
 <main>
   <!-- ============ PLAN ============ -->
   <section class="tab active" id="tab-plan">
+    <div id="wxStrip" hidden>
+      <div class="wxHead">☀️ Disney World weather</div>
+      <div class="wxRow" id="wxRow"></div>
+    </div>
     <div class="tabTitle">Park days <button class="btn gold small" id="addDay">+ Add day</button></div>
     <div id="daysList"></div>
     <div class="empty" id="daysEmpty">No park days yet. Add a day, pick a park, then send rides and restaurants here from the other tabs.</div>
@@ -352,7 +369,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v4.4</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v4.5</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -712,6 +729,46 @@ function startSync(){
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") pullSync(); });
 }
 function renderAll(){renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();}
+
+/* ============================================================
+   WEATHER — Walt Disney World 7-day, via Open-Meteo (no key)
+   ============================================================ */
+const WX_URL="https://api.open-meteo.com/v1/forecast?latitude=28.3852&longitude=-81.5639&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=7";
+function wxEmoji(code){
+  if(code===0) return "☀️";
+  if(code<=2) return "🌤️";
+  if(code===3) return "☁️";
+  if(code<=48) return "🌫️";
+  if(code<=57) return "🌦️";
+  if(code<=67) return "🌧️";
+  if(code<=77) return "❄️";
+  if(code<=82) return "🌧️";
+  if(code<=86) return "❄️";
+  return "⛈️";
+}
+async function loadWeather(){
+  try{
+    const r=await fetch(WX_URL);
+    if(!r.ok) throw new Error(r.status);
+    const j=await r.json();
+    const D=j.daily;
+    if(!D||!D.time) throw new Error("no data");
+    const today=new Date().toISOString().slice(0,10);
+    document.getElementById("wxRow").innerHTML=D.time.map((iso,i)=>{
+      const dt=new Date(iso+"T12:00:00");
+      const label=iso===today?"Today":dt.toLocaleDateString(undefined,{weekday:"short"});
+      const isTrip=S.tripDate&&iso>=S.tripDate&&(new Date(iso)-new Date(S.tripDate))/864e5<7;
+      const rain=D.precipitation_probability_max[i];
+      return `<div class="wxDay${isTrip?" trip":""}">
+        <div class="d">${label}${isTrip?" 🏰":""}</div>
+        <div class="e">${wxEmoji(D.weather_code[i])}</div>
+        <div class="t">${Math.round(D.temperature_2m_max[i])}° <small>${Math.round(D.temperature_2m_min[i])}°</small></div>
+        <div class="r">${rain!=null?"💧"+rain+"%":""}</div>
+      </div>`;
+    }).join("");
+    document.getElementById("wxStrip").hidden=false;
+  }catch(e){ document.getElementById("wxStrip").hidden=true; }
+}
 
 const save=()=>{ ensureSyncFields(S); stampChanges(); schedulePush(); return store.save(S); };
 
@@ -1260,6 +1317,7 @@ if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   }catch(e){ console.warn("Saved data couldn't be read — starting fresh.",e); }
   renderHeader();renderKids();renderRides();renderFood();renderDays();renderTodos();
   ensureSyncFields(S); buildSnap(); startSync();
+  loadWeather(); setInterval(loadWeather, 30*60*1000);
 })();
 </script>
 </body>
