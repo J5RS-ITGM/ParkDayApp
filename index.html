@@ -485,7 +485,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v6.1</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v6.2</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -1136,18 +1136,19 @@ async function mapPlaceSearch(){
 let allWatchesCache=[];
 function renderAlertsPanel(){
   const el=document.getElementById("alertsList");
+  const myTail=pushSub?pushSub.endpoint.slice(-10):"";
   const names=Object.keys(watched);
+  // every server row NOT already represented in this phone's live watch list
+  const extras=allWatchesCache.filter(w=>!(w.endpoint_tail===myTail&&watched[w.ride]!==undefined));
   const mine=names.length
     ? names.map(n=>`<div class="alertRow" data-alertrow="${esc(n)}"><b>${esc(n)}</b><span class="th">&lt;${watched[n]}m</span><button class="rm" data-alertrm="${esc(n)}">✕</button></div>`).join("")
     : `<div class="empty" style="padding:10px 4px">No alerts set from this phone.</div>`;
-  const myTail=pushSub?pushSub.endpoint.slice(-10):"";
-  const others=allWatchesCache.filter(w=>w.endpoint_tail!==myTail);
-  const otherRows=others.length
+  const extraRows=extras.length
     ? `<div class="alertsSub">Every alert on this trip <span class="hint">(any phone can cancel any alert)</span></div>`
-      +others.map(w=>`<div class="alertRow"><b>${esc(w.ride)}</b><span class="th">&lt;${w.threshold}m</span><span class="devTag">${esc(w.label||"older phone")}</span><button class="rm" data-allrm="${w.id}">✕</button></div>`).join("")
+      +extras.map(w=>`<div class="alertRow"><b>${esc(w.ride)}</b><span class="th">&lt;${w.threshold}m</span><span class="devTag">${esc(w.endpoint_tail===myTail?"this phone":(w.label||"older phone"))}</span><button class="rm" data-allrm="${w.id}">✕</button></div>`).join("")
     : "";
-  const clearBtn=(names.length||others.length)?`<button class="btn danger small" id="alertsClearAll" style="margin-top:10px;width:100%">🧹 Cancel ALL alerts (every phone)</button>`:"";
-  el.innerHTML=`<div class="alertsSub">This phone</div>`+mine+otherRows+clearBtn;
+  const clearBtn=(names.length||extras.length)?`<button class="btn danger small" id="alertsClearAll" style="margin-top:10px;width:100%">🧹 Cancel ALL alerts (every phone)</button>`:"";
+  el.innerHTML=`<div class="alertsSub">This phone</div>`+mine+extraRows+clearBtn;
 }
 async function openAlerts(){
   if(pushSub) await loadWatches();      // freshen from server when we can
