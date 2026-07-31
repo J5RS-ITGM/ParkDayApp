@@ -103,6 +103,8 @@ header h1 input{
 .alertRow b{flex:1;font-size:.88rem}
 .alertRow .th{font-size:.75rem;font-weight:800;color:#4a3300;background:var(--gold);border-radius:99px;padding:2px 8px;white-space:nowrap}
 .alertRow .rm{border:none;background:none;color:var(--coral);font-weight:800;cursor:pointer;font-size:.85rem;padding:4px}
+.alertsSub{font-family:'Fredoka';font-weight:600;font-size:.82rem;color:var(--night);margin:10px 0 6px;text-align:left}
+.devTag{font-size:.62rem;font-weight:800;color:#7c81a1;background:#eef1f9;border-radius:6px;padding:2px 6px;white-space:nowrap}
 .tipBox{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);max-width:340px;width:100%;padding:20px;text-align:center}
 .tipBox h3{font-family:'Fredoka';font-weight:600;font-size:1.15rem;margin-bottom:8px}
 .tipBox p{font-size:.9rem;line-height:1.55;color:#5a5f80;margin-bottom:14px}
@@ -483,7 +485,7 @@ try{ if(localStorage.getItem("park-day-gate-v1") !== "d5dd32976cdfcd59ed420a6aaf
   <button data-tab="family"><span class="ico">👨‍👩‍👧</span>Family</button>
   <button data-tab="lists"><span class="ico">✅</span>Lists</button>
 </nav>
-<footer class="credit"><span id="verTag">Park Day v6.0</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
+<footer class="credit"><span id="verTag">Park Day v6.1</span> · Live wait times courtesy of <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Not affiliated with The Walt Disney Company — always confirm heights &amp; allergens in the park.</footer>
 <script>
 /* ============================================================
    PASSWORD GATE
@@ -858,6 +860,19 @@ function renderAll(){renderHeader();renderKids();renderRides();renderFood();rend
    ============================================================ */
 let pushCfg=null, pushSub=null, watched={};   // ride name -> threshold
 const WATCH_KEY="park-day-watches-v1";
+const DEV_KEY="park-day-device-v1";
+function deviceId(){
+  try{
+    let v=localStorage.getItem(DEV_KEY);
+    if(!v){v="dev-"+uid()+uid();localStorage.setItem(DEV_KEY,v);}
+    return v;
+  }catch(e){ return "dev-mem"; }
+}
+function deviceLabel(){
+  const ua=navigator.userAgent;
+  const kind=/iphone/i.test(ua)?"iPhone":/ipad/i.test(ua)?"iPad":/android/i.test(ua)?"Android":"Computer";
+  return kind+" "+deviceId().slice(4,8);
+}
 function cacheWatches(){
   try{ localStorage.setItem(WATCH_KEY, JSON.stringify({endpoint:pushSub?pushSub.endpoint:null, watched})); }catch(e){}
 }
@@ -881,6 +896,8 @@ async function initPush(){
     const reg=await navigator.serviceWorker.ready;
     pushSub=await reg.pushManager.getSubscription();
     if(pushSub){
+      // re-announce so the server tags this endpoint with our device id (idempotent)
+      apiFetch("POST",{subscription:pushSub.toJSON(),label:deviceLabel(),device:deviceId()},"push/subscribe").catch(()=>{});
       if(cachedEndpoint && cachedEndpoint!==pushSub.endpoint){
         // endpoint rotated (reinstall/resubscribe) — re-register cached watches
         for(const [ride,th] of Object.entries(watched)){
@@ -917,7 +934,7 @@ async function ensureSubscribed(){
   if(perm!=="granted") return false;
   const reg=await navigator.serviceWorker.ready;
   pushSub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToU8(pushCfg.publicKey)});
-  await apiFetch("POST",{subscription:pushSub.toJSON(),label:S.tripName||""},"push/subscribe");
+  await apiFetch("POST",{subscription:pushSub.toJSON(),label:deviceLabel(),device:deviceId()},"push/subscribe");
   return true;
 }
 async function setWatch(rideName, th){
@@ -1116,15 +1133,28 @@ async function mapPlaceSearch(){
       : '<span class="hint">No match inside this park — tap the map to place the pin by hand.</span>';
   }catch(e){ res.innerHTML='<span class="hint">Search needs internet — tap the map to place the pin by hand.</span>'; }
 }
+let allWatchesCache=[];
 function renderAlertsPanel(){
   const el=document.getElementById("alertsList");
   const names=Object.keys(watched);
-  el.innerHTML=names.length
+  const mine=names.length
     ? names.map(n=>`<div class="alertRow" data-alertrow="${esc(n)}"><b>${esc(n)}</b><span class="th">&lt;${watched[n]}m</span><button class="rm" data-alertrm="${esc(n)}">✕</button></div>`).join("")
-    : `<div class="empty" style="padding:14px 4px">No alerts on this phone yet.<br>Tap 🔕 Alert on any ride card to add one.</div>`;
+    : `<div class="empty" style="padding:10px 4px">No alerts set from this phone.</div>`;
+  const myTail=pushSub?pushSub.endpoint.slice(-10):"";
+  const others=allWatchesCache.filter(w=>w.endpoint_tail!==myTail);
+  const otherRows=others.length
+    ? `<div class="alertsSub">Every alert on this trip <span class="hint">(any phone can cancel any alert)</span></div>`
+      +others.map(w=>`<div class="alertRow"><b>${esc(w.ride)}</b><span class="th">&lt;${w.threshold}m</span><span class="devTag">${esc(w.label||"older phone")}</span><button class="rm" data-allrm="${w.id}">✕</button></div>`).join("")
+    : "";
+  const clearBtn=(names.length||others.length)?`<button class="btn danger small" id="alertsClearAll" style="margin-top:10px;width:100%">🧹 Cancel ALL alerts (every phone)</button>`:"";
+  el.innerHTML=`<div class="alertsSub">This phone</div>`+mine+otherRows+clearBtn;
 }
 async function openAlerts(){
   if(pushSub) await loadWatches();      // freshen from server when we can
+  try{
+    const r=await apiFetch("GET",null,"push/all");
+    if(r.ok){allWatchesCache=(await r.json()).watches||[];}
+  }catch(e){ allWatchesCache=[]; }
   renderAlertsPanel();
   document.getElementById("alertsModal").classList.add("open");
 }
@@ -1740,7 +1770,17 @@ document.body.addEventListener("click",e=>{
     return;
   }
   if(t.id==="alertsClose"||t.id==="alertsModal"){document.getElementById("alertsModal").classList.remove("open");return;}
-  if(t.dataset.alertrm){toggleWatch(t.dataset.alertrm).then(renderAlertsPanel);return;}
+  if(t.dataset.alertrm){toggleWatch(t.dataset.alertrm).then(openAlerts);return;}
+  if(t.dataset.allrm){
+    apiFetch("POST",{id:+t.dataset.allrm},"push/watch-del").then(openAlerts).catch(()=>alert("Couldn't cancel — check connection."));
+    return;
+  }
+  if(t.id==="alertsClearAll"){
+    if(confirm("Cancel every ride alert for the whole trip, on every phone?")){
+      apiFetch("POST",null,"push/clear").then(()=>{watched={};cacheWatches();renderRides();openAlerts();}).catch(()=>alert("Couldn't clear — check connection."));
+    }
+    return;
+  }
   const arow=t.closest("[data-alertrow]");
   if(arow){
     const n=arow.dataset.alertrow;

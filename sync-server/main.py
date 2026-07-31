@@ -51,6 +51,10 @@ def db():
     conn.execute(
         "CREATE TABLE IF NOT EXISTS watches (id INTEGER PRIMARY KEY AUTOINCREMENT, endpoint TEXT NOT NULL, ride TEXT NOT NULL, threshold INTEGER NOT NULL, last_fired INTEGER DEFAULT 0, UNIQUE(endpoint, ride))"
     )
+    try:
+        conn.execute("ALTER TABLE subs ADD COLUMN device TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     return conn
 
@@ -115,14 +119,22 @@ async def push_subscribe(request: Request, x_park_key: str | None = Header(defau
     endpoint = sub.get("endpoint")
     if not endpoint or "keys" not in sub:
         raise HTTPException(status_code=400, detail="bad subscription")
+    device = str(body.get("device") or "")[:64]
     with _lock, db() as conn:
         conn.execute(
-            "INSERT INTO subs (endpoint, sub, label, created) VALUES (?,?,?,?) "
-            "ON CONFLICT(endpoint) DO UPDATE SET sub=excluded.sub",
-            (endpoint, json.dumps(sub), str(body.get("label") or "")[:60], int(time.time())),
+            "INSERT INTO subs (endpoint, sub, label, created, device) VALUES (?,?,?,?,?) "
+            "ON CONFLICT(endpoint) DO UPDATE SET sub=excluded.sub, device=excluded.device, label=excluded.label",
+            (endpoint, json.dumps(sub), str(body.get("label") or "")[:60], int(time.time()), device),
         )
+        if device:
+            olds = [r[0] for r in conn.execute(
+                "SELECT endpoint FROM subs WHERE device=? AND endpoint!=?", (device, endpoint)
+            ).fetchall()]
+            for old in olds:
+                conn.execute("DELETE FROM watches WHERE endpoint=?", (old,))
+                conn.execute("DELETE FROM subs WHERE endpoint=?", (old,))
         conn.commit()
-    return {"ok": True}
+    return {"ok": True, "cleaned": device != ""}
 
 
 @app.post("/push/watch")
@@ -167,6 +179,39 @@ def list_watches(endpoint: str = "", x_park_key: str | None = Header(default=Non
             "SELECT ride, threshold FROM watches WHERE endpoint=?", (endpoint,)
         ).fetchall()
     return {"watches": [{"ride": r, "threshold": t} for r, t in rows]}
+
+
+@app.get("/push/all")
+def all_watches(x_park_key: str | None = Header(default=None)):
+    check_key(x_park_key)
+    with _lock, db() as conn:
+        rows = conn.execute(
+            "SELECT w.id, w.ride, w.threshold, w.endpoint, COALESCE(s.label,''), COALESCE(s.device,'') "
+            "FROM watches w LEFT JOIN subs s ON s.endpoint = w.endpoint ORDER BY w.ride"
+        ).fetchall()
+    return {"watches": [
+        {"id": i, "ride": r, "threshold": t, "endpoint_tail": ep[-10:], "label": lb, "device": dv}
+        for i, r, t, ep, lb, dv in rows
+    ]}
+
+
+@app.post("/push/watch-del")
+async def watch_del(request: Request, x_park_key: str | None = Header(default=None)):
+    check_key(x_park_key)
+    body = await request.json()
+    with _lock, db() as conn:
+        conn.execute("DELETE FROM watches WHERE id=?", (int(body.get("id", -1)),))
+        conn.commit()
+    return {"ok": True}
+
+
+@app.post("/push/clear")
+async def clear_watches(x_park_key: str | None = Header(default=None)):
+    check_key(x_park_key)
+    with _lock, db() as conn:
+        conn.execute("DELETE FROM watches")
+        conn.commit()
+    return {"ok": True}
 
 
 @app.get("/health")
